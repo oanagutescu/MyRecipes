@@ -1,0 +1,2608 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>MyRecipes</title>
+
+<!-- PWA / iOS home screen -->
+<link rel="manifest" href="./manifest.json" />
+<meta name="theme-color" content="#007aff" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="MyRecipes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+
+<style>
+  :root {
+    --accent: #007aff;
+    --accent-contrast: #ffffff;
+    --bg: #f2f2f7;
+    --card-bg: #ffffff;
+    --separator: #d1d1d6;
+    --text: #000000;
+    --text-secondary: #8e8e93;
+    --danger: #ff3b30;
+    --nav-height: 44px;
+    --tab-height: 49px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Navigation bar (per-screen header) */
+  .nav-bar {
+    flex: 0 0 auto;
+    padding-top: var(--safe-top);
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+  .nav-bar-inner {
+    height: var(--nav-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 12px;
+  }
+  .nav-title {
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .nav-btn {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--accent-contrast);
+    font-size: 17px;
+    padding: 0 8px;
+    cursor: pointer;
+  }
+  .nav-btn.left { left: 4px; }
+  .nav-btn.right { right: 4px; }
+
+  /* Screens */
+  .screens {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: none;
+  }
+  .screen.active { display: block; }
+
+  .placeholder {
+    padding: 24px 16px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  /* Grouped list style (iOS Settings-like) */
+  .group-header {
+    padding: 20px 16px 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .list-card {
+    background: var(--card-bg);
+    margin: 0 0 8px;
+  }
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--separator);
+    background: var(--card-bg);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row .row-title { flex: 1; font-size: 17px; }
+
+  /* Bottom Tab Bar */
+  .tab-bar {
+    flex: 0 0 auto;
+    display: flex;
+    background: rgba(249, 249, 249, 0.94);
+    border-top: 1px solid var(--separator);
+    padding-bottom: var(--safe-bottom);
+    backdrop-filter: blur(10px);
+  }
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: var(--tab-height);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .tab-btn .tab-icon { font-size: 22px; line-height: 1; }
+  .tab-btn.active { color: var(--accent); }
+
+  button, input, select, textarea {
+    font-family: inherit;
+  }
+
+  /* Search bar */
+  .search-bar-wrap {
+    padding: 8px 10px;
+    background: var(--bg);
+  }
+  .search-input {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: #e3e3e8;
+    font-size: 16px;
+  }
+
+  /* Overlay screen stack (pushed detail/edit screens) */
+  .overlay-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .overlay-screen {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    transform: translateX(100%);
+    transition: transform 0.28s ease;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .overlay-screen.active { transform: translateX(0); }
+  .overlay-content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Forms */
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+  }
+  .form-row label {
+    width: 110px;
+    flex: 0 0 auto;
+    color: var(--text-secondary);
+    font-size: 15px;
+  }
+  .form-row input[type="text"],
+  .form-row input[type="number"],
+  .form-row input[type="url"],
+  .form-row select,
+  .form-row textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 17px;
+    color: var(--text);
+    min-width: 0;
+  }
+  .form-row textarea { min-height: 90px; resize: vertical; padding-top: 8px; }
+  .form-row.tappable { cursor: pointer; }
+  .form-row .chevron { color: var(--separator); }
+  .danger-row {
+    text-align: center;
+    color: var(--danger);
+    font-size: 17px;
+    padding: 14px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+    cursor: pointer;
+  }
+  .add-row {
+    text-align: center;
+    color: var(--accent);
+    font-size: 17px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+    cursor: pointer;
+  }
+
+  /* Chip grid (toggles / emoji picker) */
+  .chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+  }
+  .chip {
+    padding: 8px 12px;
+    border-radius: 16px;
+    background: #e5e5ea;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .chip.active { background: var(--accent); color: #fff; }
+  .chip.emoji-chip { font-size: 22px; padding: 4px 8px; border-radius: 10px; }
+  .chip.emoji-chip.active { background: var(--accent); }
+  .extra-field-row { background: #f7f7fa; }
+
+  /* Swipe to delete */
+  .swipe-container { position: relative; overflow: hidden; }
+  .swipe-content {
+    position: relative;
+    background: var(--card-bg);
+    touch-action: pan-y;
+  }
+  .swipe-delete-btn {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 80px;
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    font-size: 14px;
+  }
+
+  /* Star rating */
+  .star-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+  }
+  .star-row .member-name { flex: 1; font-size: 17px; }
+  .stars { display: flex; gap: 2px; }
+  .star { font-size: 22px; color: var(--separator); cursor: pointer; }
+  .star.filled { color: #ff9500; }
+  .rating-badge {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+  }
+
+  /* Photo preview */
+  .photo-preview {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    display: block;
+    background: #e5e5ea;
+  }
+
+  /* Menu recipe rows + footer */
+  .menu-recipe-row .method-icons { font-size: 14px; text-align: right; }
+  .menu-recipe-row .method-time { font-size: 11px; color: var(--text-secondary); display: block; text-align: right; }
+  .menu-recipe-row .info-btn { color: var(--accent); font-size: 18px; padding: 0 4px; cursor: pointer; }
+  .checkbox-circle {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--separator);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #fff; cursor: pointer; flex: 0 0 auto;
+  }
+
+  /* Cooking Mode */
+  .cooking-recipe-card {
+    background: var(--card-bg);
+    margin: 0 0 12px;
+    padding: 14px 16px;
+  }
+  .cooking-recipe-card.done { opacity: 0.55; }
+  .cooking-recipe-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .cooking-recipe-header .cr-name { font-size: 17px; font-weight: 600; flex: 1; }
+  .cooking-recipe-header .cr-done-btn {
+    border: none; background: var(--accent); color: #fff;
+    border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer;
+  }
+  .cooking-toggle-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .cooking-toggle-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; cursor: pointer;
+  }
+  .cooking-toggle-item .ct-check {
+    width: 20px; height: 20px; border-radius: 5px;
+    border: 2px solid var(--separator);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #fff; flex: 0 0 auto;
+  }
+  .cooking-toggle-item.checked .ct-check { background: var(--accent); border-color: var(--accent); }
+  .cooking-toggle-item.checked .ct-label { text-decoration: line-through; color: var(--text-secondary); }
+  .cooking-timer-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 8px 0;
+    border-top: 1px solid var(--separator);
+  }
+  .cooking-timer-row .ct-timer-label { font-size: 15px; }
+  .cooking-timer-controls { display: flex; align-items: center; gap: 8px; }
+  .cooking-timer-display { font-size: 20px; font-variant-numeric: tabular-nums; min-width: 60px; text-align: right; }
+  .cooking-timer-display.ringing { color: var(--danger); animation: cookingBlink 1s step-start infinite; }
+  @keyframes cookingBlink { 50% { opacity: 0.2; } }
+  .cooking-timer-btn {
+    border: none; background: var(--accent); color: #fff;
+    border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer;
+  }
+  .cooking-timer-btn.secondary { background: var(--separator); color: var(--text); }
+  .cooking-link-row {
+    display: flex; gap: 16px; margin-top: 8px;
+    font-size: 14px; color: var(--accent);
+  }
+  .cooking-link-row span { cursor: pointer; }
+
+  .cooking-info-photo {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    cursor: zoom-in;
+    display: block;
+  }
+  .cooking-info-link {
+    display: inline-block;
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-size: 15px;
+    word-break: break-all;
+  }
+
+  /* Full-screen zoomable image lightbox */
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    touch-action: pinch-zoom;
+  }
+  .lightbox-overlay img {
+    max-width: 100%;
+    max-height: 100%;
+    touch-action: pinch-zoom;
+    cursor: zoom-out;
+  }
+
+  .strikethrough { text-decoration: line-through; color: var(--text-secondary); }
+
+  /* Admin screen */
+  .color-swatch-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+  }
+  .color-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+  }
+  .color-swatch.selected { border-color: var(--text); }
+  .lang-switch-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+  }
+  .lang-switch-btn {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--separator);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .lang-switch-btn.active {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+  }
+
+  .menu-footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(249, 249, 249, 0.96);
+    border-top: 1px solid var(--separator);
+    backdrop-filter: blur(10px);
+  }
+  .menu-footer button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 15px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="nav-bar">
+    <div class="nav-bar-inner">
+      <button class="nav-btn left" id="nav-left-btn" style="display:none;"></button>
+      <span class="nav-title" id="nav-title">Menus</span>
+      <button class="nav-btn right" id="nav-right-btn" style="display:none;"></button>
+    </div>
+  </div>
+
+  <div class="screens">
+    <section class="screen active" data-screen="menus">
+      <div class="search-bar-wrap"><input type="text" id="menus-search" class="search-input" placeholder="Search"/></div>
+      <div id="menus-list"></div>
+    </section>
+    <section class="screen" data-screen="recipes">
+      <div class="search-bar-wrap"><input type="text" id="recipes-search" class="search-input" placeholder="Search"/></div>
+      <div id="recipes-list"></div>
+    </section>
+    <section class="screen" data-screen="shopping">
+      <div class="search-bar-wrap"><input type="text" id="shopping-search" class="search-input" placeholder="Search"/></div>
+      <div id="shopping-list"></div>
+    </section>
+    <section class="screen" data-screen="ingredients">
+      <div class="search-bar-wrap"><input type="text" id="ingredients-search" class="search-input" placeholder="Search"/></div>
+      <div id="ingredients-list"></div>
+    </section>
+    <section class="screen" data-screen="admin">
+      <div id="admin-content"></div>
+    </section>
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="menus">
+      <span class="tab-icon">📋</span><span data-i18n="tab.menus">Menus</span>
+    </button>
+    <button class="tab-btn" data-tab="recipes">
+        <span class="tab-icon">🍔</span><span data-i18n="tab.recipes">Recipes</span>
+    </button>
+    <button class="tab-btn" data-tab="shopping">
+      <span class="tab-icon">🛒</span><span data-i18n="tab.shopping">Shopping</span>
+    </button>
+    <button class="tab-btn" data-tab="ingredients">
+      <span class="tab-icon">🥕</span><span data-i18n="tab.ingredients">Products</span>
+    </button>
+    <button class="tab-btn" data-tab="admin">
+      <span class="tab-icon">⚙️</span><span data-i18n="tab.admin">Admin</span>
+    </button>
+  </nav>
+</div>
+
+<div class="overlay-root" id="overlay-root"></div>
+
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================
+     i18n
+     ========================================================= */
+  const STRINGS = {
+    en: {
+      "tab.menus": "Menus",
+      "tab.recipes": "Recipes",
+      "tab.shopping": "Shopping",
+      "tab.ingredients": "Products",
+      "tab.admin": "Admin",
+      "nav.menus": "Menus",
+      "nav.recipes": "Recipes",
+      "nav.shopping": "Shopping List",
+      "nav.ingredients": "Products",
+      "nav.admin": "Admin",
+      "admin.familyMembers": "Family Members",
+      "admin.addMember": "Add Family Member",
+      "admin.memberName": "Name",
+      "admin.settings": "Settings",
+      "admin.language": "Language",
+      "admin.accentColor": "Accent Color"
+    },
+    ro: {
+      "tab.menus": "Meniuri",
+      "tab.recipes": "Rețete",
+      "tab.shopping": "Cumpărături",
+      "tab.ingredients": "Produse",
+      "tab.admin": "Admin",
+      "nav.menus": "Meniuri",
+      "nav.recipes": "Rețete",
+      "nav.shopping": "Listă cumpărături",
+      "nav.ingredients": "Produse",
+      "nav.admin": "Admin",
+      "admin.familyMembers": "Membrii familiei",
+      "admin.addMember": "Adaugă membru",
+      "admin.memberName": "Nume",
+      "admin.settings": "Setări",
+      "admin.language": "Limbă",
+      "admin.accentColor": "Culoare accent"
+    }
+  };
+
+  const I18N = {
+    lang: localStorage.getItem("myrecipes.lang") || "en",
+    t(key) {
+      const dict = STRINGS[I18N.lang] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    },
+    setLang(lang) {
+      if (!STRINGS[lang]) return;
+      I18N.lang = lang;
+      localStorage.setItem("myrecipes.lang", lang);
+      I18N.applyAll();
+    },
+    applyAll() {
+      document.documentElement.lang = I18N.lang;
+      document.querySelectorAll("[data-i18n]").forEach((el) => {
+        el.textContent = I18N.t(el.getAttribute("data-i18n"));
+      });
+      const navTitle = document.getElementById("nav-title");
+      const activeTab = document.querySelector(".tab-btn.active");
+      if (navTitle && activeTab) {
+        navTitle.textContent = I18N.t("nav." + activeTab.dataset.tab);
+      }
+    }
+  };
+  window.I18N = I18N;
+
+  /* =========================================================
+     Accent color (applied instantly from localStorage,
+     synced with the Settings store once IndexedDB is open)
+     ========================================================= */
+  const savedColor = localStorage.getItem("myrecipes.accentColor");
+  if (savedColor) {
+    document.documentElement.style.setProperty("--accent", savedColor);
+  }
+  window.setAccentColor = function (hex) {
+    document.documentElement.style.setProperty("--accent", hex);
+    localStorage.setItem("myrecipes.accentColor", hex);
+    DB.put("settings", { id: "accentColor", value: hex });
+  };
+
+  /* =========================================================
+     IndexedDB wrapper
+     ========================================================= */
+  const DB_NAME = "MyRecipesDB";
+  const DB_VERSION = 2;
+  let dbInstance = null;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+
+        if (!db.objectStoreNames.contains("recipes")) {
+          const store = db.createObjectStore("recipes", { keyPath: "id" });
+          store.createIndex("categoryId", "categoryId", { unique: false });
+          store.createIndex("updatedAt", "updatedAt", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("ingredients")) {
+          const store = db.createObjectStore("ingredients", { keyPath: "id" });
+          store.createIndex("categoryId", "categoryId", { unique: false });
+          store.createIndex("usageCount", "usageCount", { unique: false });
+          store.createIndex("updatedAt", "updatedAt", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("recipeCategories")) {
+          const store = db.createObjectStore("recipeCategories", { keyPath: "id" });
+          store.createIndex("sortOrder", "sortOrder", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("ingredientCategories")) {
+          const store = db.createObjectStore("ingredientCategories", { keyPath: "id" });
+          store.createIndex("sortOrder", "sortOrder", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("menus")) {
+          const store = db.createObjectStore("menus", { keyPath: "id" });
+          store.createIndex("date", "date", { unique: false });
+          store.createIndex("updatedAt", "updatedAt", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("cookingSessions")) {
+          const store = db.createObjectStore("cookingSessions", { keyPath: "id" });
+          store.createIndex("recipeId", "recipeId", { unique: false });
+          store.createIndex("endDateTime", "endDateTime", { unique: false });
+        }
+        if (!db.objectStoreNames.contains("familyMembers")) {
+          db.createObjectStore("familyMembers", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("settings")) {
+          db.createObjectStore("settings", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("shoppingList")) {
+          const store = db.createObjectStore("shoppingList", { keyPath: "id" });
+          store.createIndex("createdAt", "createdAt", { unique: false });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        dbInstance = event.target.result;
+        dbInstance.onversionchange = () => {
+          dbInstance.close();
+          dbInstance = null;
+        };
+        resolve(dbInstance);
+      };
+      request.onerror = (event) => reject(event.target.error);
+      request.onblocked = () => {
+        console.warn("IndexedDB upgrade blocked by another open tab/connection.");
+        reject(new Error("IndexedDB upgrade blocked. Please close other tabs/windows of this app and reload."));
+      };
+    });
+  }
+
+  function withStore(storeName, mode, callback) {
+    return openDB().then((db) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, mode);
+        const store = tx.objectStore(storeName);
+        const result = callback(store);
+        tx.oncomplete = () => resolve(result && result.__result);
+        tx.onerror = () => reject(tx.error);
+      });
+    });
+  }
+
+  const DB = {
+    open: openDB,
+    getAll(storeName) {
+      return openDB().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readonly");
+        const req = tx.objectStore(storeName).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      }));
+    },
+    get(storeName, id) {
+      return openDB().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readonly");
+        const req = tx.objectStore(storeName).get(id);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      }));
+    },
+    put(storeName, record) {
+      return openDB().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readwrite");
+        tx.objectStore(storeName).put(record);
+        tx.oncomplete = () => resolve(record);
+        tx.onerror = () => reject(tx.error);
+      }));
+    },
+    delete(storeName, id) {
+      return openDB().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readwrite");
+        tx.objectStore(storeName).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      }));
+    },
+    clear(storeName) {
+      return openDB().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readwrite");
+        tx.objectStore(storeName).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      }));
+    }
+  };
+  window.DB = DB;
+
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  window.uuid = uuid;
+  window.nowISO = () => new Date().toISOString();
+
+  /* =========================================================
+     Seed default data on first run
+     ========================================================= */
+  async function seedIfEmpty() {
+    const members = await DB.getAll("familyMembers");
+    if (members.length === 0) {
+      const defaults = ["Oana", "Andrei", "Robert"];
+      for (const name of defaults) {
+        await DB.put("familyMembers", { id: uuid(), name, updatedAt: nowISO() });
+      }
+    }
+
+    const settings = await DB.getAll("settings");
+    const settingsById = Object.fromEntries(settings.map((s) => [s.id, s]));
+    if (!settingsById.lang) {
+      await DB.put("settings", { id: "lang", value: I18N.lang });
+    }
+    if (!settingsById.accentColor) {
+      await DB.put("settings", { id: "accentColor", value: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#007aff" });
+    }
+
+    await seedSampleData();
+  }
+
+  /* =========================================================
+     Sample/test data (only inserted once, if recipes store is empty)
+     ========================================================= */
+  async function seedSampleData() {
+    const existingRecipes = await DB.getAll("recipes");
+    if (existingRecipes.length > 0) return;
+
+    const now = nowISO();
+
+    const ingCatLegume = { id: uuid(), name: "Legume", icon: "🥕", sortOrder: 0, updatedAt: now };
+    const ingCatLactate = { id: uuid(), name: "Lactate", icon: "🧀", sortOrder: 1, updatedAt: now };
+    await DB.put("ingredientCategories", ingCatLegume);
+    await DB.put("ingredientCategories", ingCatLactate);
+
+    const recCatPrincipal = { id: uuid(), name: "Fel principal", icon: "🍲", sortOrder: 0, updatedAt: now };
+    const recCatDesert = { id: uuid(), name: "Desert", icon: "🍰", sortOrder: 1, updatedAt: now };
+    await DB.put("recipeCategories", recCatPrincipal);
+    await DB.put("recipeCategories", recCatDesert);
+
+    const ingCartofi = {
+      id: uuid(), categoryId: ingCatLegume.id, name: "Cartofi", note: "",
+      units: [{ unit: "kg", defaultQty: 1 }], excludeFromShoppingList: false, usageCount: 0, updatedAt: now
+    };
+    const ingLapte = {
+      id: uuid(), categoryId: ingCatLactate.id, name: "Lapte", note: "",
+      units: [{ unit: "l", defaultQty: 1 }], excludeFromShoppingList: false, usageCount: 0, updatedAt: now
+    };
+    await DB.put("ingredients", ingCartofi);
+    await DB.put("ingredients", ingLapte);
+
+    const recCartofi = {
+      id: uuid(), categoryId: recCatPrincipal.id, name: "Cartofi la cuptor",
+      toggles: { wash: true, peel: true, cut: true, oven: true },
+      boilTime: 20, ovenTemp: 200, ovenTime: 45, waitingHours: 8,
+      ingredients: [{ ingredientId: ingCartofi.id, name: "Cartofi", unit: "kg", quantity: 1 }],
+      preparationText: "Se spală, se curăță și se taie cartofii felii. Se coc la cuptor 45 de minute.",
+      preparationPhoto: null, sourceUrl: "", totalDuration: 60,
+      ratings: {}, photo: null, updatedAt: now
+    };
+    const recClatite = {
+      id: uuid(), categoryId: recCatDesert.id, name: "Clătite",
+      toggles: { mix: true },
+      boilTime: 20, ovenTemp: 180, ovenTime: 60, waitingHours: 8,
+      ingredients: [{ ingredientId: ingLapte.id, name: "Lapte", unit: "l", quantity: 0.5 }],
+      preparationText: "Se amestecă toate ingredientele și se prăjesc clătitele pe ambele părți.",
+      preparationPhoto: null, sourceUrl: "", totalDuration: 30,
+      ratings: {}, photo: null, updatedAt: now
+    };
+    await DB.put("recipes", recCartofi);
+    await DB.put("recipes", recClatite);
+    ingCartofi.usageCount = 1; ingLapte.usageCount = 1;
+    await DB.put("ingredients", ingCartofi);
+    await DB.put("ingredients", ingLapte);
+
+    const today = new Date();
+    const dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+    const sampleMenu = {
+      id: uuid(), name: "Meniu de duminică", date: dateStr,
+      recipes: [
+        { recipeId: recCartofi.id, name: recCartofi.name, checked: false },
+        { recipeId: recClatite.id, name: recClatite.name, checked: false }
+      ],
+      updatedAt: now
+    };
+    await DB.put("menus", sampleMenu);
+  }
+
+  /* =========================================================
+     Tab navigation
+     ========================================================= */
+  function activateTab(tabName) {
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll(".screen").forEach((scr) => {
+      scr.classList.toggle("active", scr.dataset.screen === tabName);
+    });
+    const navTitle = document.getElementById("nav-title");
+    if (navTitle) navTitle.textContent = I18N.t("nav." + tabName);
+    if (typeof window.onTabActivated === "function") {
+      window.onTabActivated(tabName);
+    }
+  }
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+  });
+
+  /* =========================================================
+     Service worker registration
+     ========================================================= */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch((err) => {
+        console.warn("Service worker registration failed:", err);
+      });
+    });
+  }
+
+  /* =========================================================
+     Init
+     ========================================================= */
+  openDB()
+    .then(() => seedIfEmpty())
+    .then(() => {
+      I18N.applyAll();
+      if (typeof window.onTabActivated === "function") {
+        window.onTabActivated("menus");
+      }
+    })
+    .catch((err) => {
+      console.error("DB init failed:", err);
+      alert((err && err.message) || "Failed to open the database. Please close other tabs of this app and reload.");
+    });
+
+})();
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================
+     Screen stack (push/pop full-screen overlays)
+     ========================================================= */
+  const overlayRoot = document.getElementById("overlay-root");
+
+  function pushScreen({ title, left, right, render }) {
+    const el = document.createElement("div");
+    el.className = "overlay-screen";
+    el.innerHTML =
+      '<div class="nav-bar"><div class="nav-bar-inner">' +
+      '<button class="nav-btn left" data-nav="left"></button>' +
+      '<span class="nav-title"></span>' +
+      '<button class="nav-btn right" data-nav="right"></button>' +
+      "</div></div>" +
+      '<div class="overlay-content"></div>';
+    el.querySelector(".nav-title").textContent = title || "";
+    overlayRoot.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("active"));
+
+    const content = el.querySelector(".overlay-content");
+    const leftBtn = el.querySelector('[data-nav="left"]');
+    const rightBtn = el.querySelector('[data-nav="right"]');
+
+    function close() {
+      el.classList.remove("active");
+      setTimeout(() => el.remove(), 300);
+    }
+    function refresh() {
+      content.innerHTML = "";
+      render(content, refresh, close);
+    }
+
+    if (left) {
+      leftBtn.textContent = left.label || "";
+      leftBtn.addEventListener("click", () => (left.action ? left.action(close, refresh) : close()));
+    }
+    if (right) {
+      rightBtn.textContent = right.label || "";
+      rightBtn.addEventListener("click", () => right.action(close, refresh));
+    }
+
+    render(content, refresh, close);
+    return { close, refresh, element: el };
+  }
+  window.pushScreen = pushScreen;
+
+  /* =========================================================
+     Swipe-to-delete helper
+     ========================================================= */
+  function makeSwipeable(rowEl, onDelete) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "swipe-container";
+    rowEl.classList.add("swipe-content");
+    rowEl.parentNode.insertBefore(wrapper, rowEl);
+    wrapper.appendChild(rowEl);
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "swipe-delete-btn";
+    delBtn.textContent = I18N.lang === "ro" ? "Șterge" : "Delete";
+    wrapper.appendChild(delBtn);
+    delBtn.addEventListener("click", () => onDelete());
+
+    let startX = 0, currentX = 0, dragging = false;
+    rowEl.addEventListener("touchstart", (e) => {
+      startX = e.touches[0].clientX;
+      dragging = true;
+      rowEl.style.transition = "none";
+    }, { passive: true });
+    rowEl.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      let dx = e.touches[0].clientX - startX + currentX;
+      dx = Math.min(0, Math.max(dx, -80));
+      rowEl.style.transform = "translateX(" + dx + "px)";
+      rowEl.dataset.dx = dx;
+    }, { passive: true });
+    rowEl.addEventListener("touchend", () => {
+      dragging = false;
+      rowEl.style.transition = "transform 0.2s";
+      const dx = parseFloat(rowEl.dataset.dx || "0");
+      if (dx < -40) {
+        rowEl.style.transform = "translateX(-80px)";
+        currentX = -80;
+      } else {
+        rowEl.style.transform = "translateX(0)";
+        currentX = 0;
+      }
+    });
+    return wrapper;
+  }
+  window.makeSwipeable = makeSwipeable;
+
+  /* =========================================================
+     Categories
+     ========================================================= */
+  const FOOD_EMOJIS = ["🍎","🥕","🥩","🐟","🍞","🧀","🥛","🥚","🍚","🍝","🌿","🧂","🍋","🍇","🥔","🧅","🧄","🌶️","🥦","🍄","🍯","🥜","🍫","🧊","🥤","☕","🍰","🍕","🥫","🍉"];
+
+  function getCategoryStore(kind) {
+    return kind === "recipe" ? "recipeCategories" : "ingredientCategories";
+  }
+
+  async function getCategoriesSorted(kind) {
+    const list = await DB.getAll(getCategoryStore(kind));
+    return list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  }
+  window.getCategoriesSorted = getCategoriesSorted;
+  window.getCategoryStore = getCategoryStore;
+
+  async function createCategory(kind, name, icon) {
+    const store = getCategoryStore(kind);
+    const cats = await DB.getAll(store);
+    const maxOrder = cats.reduce((m, c) => Math.max(m, c.sortOrder ?? 0), -1);
+    const cat = { id: uuid(), name, icon, sortOrder: maxOrder + 1, updatedAt: nowISO() };
+    await DB.put(store, cat);
+    return cat;
+  }
+  window.createCategory = createCategory;
+
+  function openNewCategoryScreen(kind, onCreated, prefillName) {
+    let selectedEmoji = FOOD_EMOJIS[0];
+    let currentName = prefillName || "";
+    const isRo = I18N.lang === "ro";
+    const screen = pushScreen({
+      title: isRo ? "Categorie nouă" : "New Category",
+      left: { label: isRo ? "Anulează" : "Cancel" },
+      right: {
+        label: isRo ? "Salvează" : "Save",
+        action: async (close) => {
+          const nameInput = screen.element.querySelector("#cat-name");
+          const customInput = screen.element.querySelector("#cat-custom-emoji");
+          const name = (nameInput.value || currentName).trim();
+          if (!name) { nameInput.focus(); return; }
+          const icon = (customInput.value.trim() || selectedEmoji);
+          const cat = await createCategory(kind, name, icon);
+          close();
+          onCreated && onCreated(cat);
+        }
+      },
+      render(content) {
+        content.innerHTML =
+          '<div class="form-row"><label>' + (isRo ? "Nume" : "Name") + '</label><input type="text" id="cat-name" value="' + escapeAttr(currentName) + '" placeholder="' + (isRo ? "ex: Legume" : "e.g. Produce") + '"/></div>' +
+          '<div class="group-header">' + (isRo ? "Icon" : "Icon") + '</div>' +
+          '<div class="chip-grid" id="emoji-grid">' +
+          FOOD_EMOJIS.map((e, i) => '<div class="chip emoji-chip' + (i === 0 ? " active" : "") + '" data-emoji="' + e + '">' + e + "</div>").join("") +
+          "</div>" +
+          '<div class="form-row"><label>' + (isRo ? "Personalizat" : "Custom") + '</label><input type="text" id="cat-custom-emoji" maxlength="4" placeholder="🙂"/></div>';
+        const nameInput = content.querySelector("#cat-name");
+        attachAutoCapitalize(nameInput, (val) => { currentName = val; });
+        content.querySelectorAll(".emoji-chip").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            content.querySelectorAll(".emoji-chip").forEach((c) => c.classList.remove("active"));
+            chip.classList.add("active");
+            selectedEmoji = chip.dataset.emoji;
+            content.querySelector("#cat-custom-emoji").value = "";
+          });
+        });
+      }
+    });
+    return screen;
+  }
+
+  function openCategoryPicker(kind, currentId, onSelect) {
+    const isRo = I18N.lang === "ro";
+    const screen = pushScreen({
+      title: isRo ? "Categorie" : "Category",
+      left: { label: isRo ? "Închide" : "Close" },
+      async render(content) {
+        const cats = await getCategoriesSorted(kind);
+        content.innerHTML =
+          '<div class="add-row" id="add-cat-row">+ ' + (isRo ? "Categorie nouă" : "New Category") + "</div>" +
+          '<div class="list-card">' +
+          cats.map((c) =>
+            '<div class="list-row tappable" data-cat-id="' + c.id + '">' +
+            '<span>' + c.icon + "</span><span class=\"row-title\">" + c.name + "</span>" +
+            (c.id === currentId ? '<span>✓</span>' : "") +
+            "</div>"
+          ).join("") +
+          "</div>";
+        content.querySelector("#add-cat-row").addEventListener("click", () => {
+          openNewCategoryScreen(kind, (cat) => { onSelect(cat); screen.close(); });
+        });
+        content.querySelectorAll("[data-cat-id]").forEach((row) => {
+          row.addEventListener("click", async () => {
+            const cats2 = await getCategoriesSorted(kind);
+            const cat = cats2.find((c) => c.id === row.dataset.catId);
+            onSelect(cat);
+            screen.close();
+          });
+        });
+      }
+    });
+    return screen;
+  }
+  window.openCategoryPicker = openCategoryPicker;
+
+  /* =========================================================
+     Image compression helper
+     ========================================================= */
+  function compressImageFile(file, maxDim, quality) {
+    maxDim = maxDim || 1024;
+    quality = quality || 0.8;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+          const canvas = document.createElement("canvas");
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* =========================================================
+     Common measurement units
+     ========================================================= */
+  const COMMON_UNITS = ["kg", "g", "l", "ml", "buc", "lingură", "linguriță", "pachet", "fir", "felie"];
+
+  /* =========================================================
+     Ingredients
+     ========================================================= */
+  async function openIngredientEditor(ingredientId, onSaved, prefillName) {
+    const isRo = I18N.lang === "ro";
+    const isNew = !ingredientId;
+    let ingredient = isNew
+      ? { id: uuid(), categoryId: null, name: prefillName || "", note: "", units: [], excludeFromShoppingList: false, usageCount: 0 }
+      : await DB.get("ingredients", ingredientId);
+    let selectedCategory = ingredient.categoryId ? await DB.get("ingredientCategories", ingredient.categoryId) : null;
+
+    const screen = pushScreen({
+      title: isNew ? (isRo ? "Produs nou" : "New Product") : (isRo ? "Editează produs" : "Edit Product"),
+      left: { label: isRo ? "Anulează" : "Cancel" },
+      right: {
+        label: isRo ? "Salvează" : "Save",
+        action: async (close) => {
+          const nameInput = screen.element.querySelector("#ing-name");
+          const noteInput = screen.element.querySelector("#ing-note");
+          const excludeInput = screen.element.querySelector("#ing-exclude");
+          const name = nameInput.value.trim();
+          if (!name) { nameInput.focus(); return; }
+          ingredient.name = name;
+          ingredient.note = noteInput.value.trim();
+          ingredient.excludeFromShoppingList = excludeInput.checked;
+          ingredient.categoryId = selectedCategory ? selectedCategory.id : null;
+          ingredient.updatedAt = nowISO();
+          if (ingredient.usageCount == null) ingredient.usageCount = 0;
+          await DB.put("ingredients", ingredient);
+          close();
+          onSaved && onSaved();
+        }
+      },
+      render(content, refresh) {
+        content.innerHTML =
+          '<div class="form-row"><label>' + (isRo ? "Nume" : "Name") + '</label><input type="text" id="ing-name" value="' + escapeAttr(ingredient.name) + '"/></div>' +
+          '<div class="form-row tappable" id="ing-cat-row"><label>' + (isRo ? "Categorie" : "Category") + '</label><span style="flex:1">' + (selectedCategory ? selectedCategory.icon + " " + selectedCategory.name : (isRo ? "Fără categorie" : "None")) + '</span><span class="chevron">›</span></div>' +
+          '<div class="form-row"><label>' + (isRo ? "Notă" : "Note") + '</label><input type="text" id="ing-note" value="' + escapeAttr(ingredient.note || "") + '"/></div>' +
+          '<div class="form-row"><label style="width:auto;flex:1">' + (isRo ? "Exclude din lista de cumpărături" : "Exclude from shopping list") + '</label><input type="checkbox" id="ing-exclude" ' + (ingredient.excludeFromShoppingList ? "checked" : "") + "/></div>" +
+          '<div class="group-header">' + (isRo ? "Unități" : "Units") + "</div>" +
+          '<div class="list-card" id="ing-units-list">' +
+          (ingredient.units || []).map((u, idx) =>
+            '<div class="list-row" data-unit-idx="' + idx + '"><span class="row-title">' + u.unit + " — " + (isRo ? "implicit" : "default") + " " + u.defaultQty + '</span><span class="danger-remove-unit" style="color:var(--danger);cursor:pointer;">✕</span></div>'
+          ).join("") +
+          "</div>" +
+          '<div class="add-row" id="add-unit-row">+ ' + (isRo ? "Adaugă unitate" : "Add unit") + "</div>" +
+          (isNew ? "" : '<div class="danger-row" id="delete-ing-row">' + (isRo ? "Șterge produs" : "Delete Product") + "</div>");
+
+        attachAutoCapitalize(content.querySelector("#ing-name"), (val) => { ingredient.name = val; });
+        content.querySelector("#ing-note").addEventListener("input", (e) => { ingredient.note = e.target.value; });
+        content.querySelector("#ing-exclude").addEventListener("change", (e) => { ingredient.excludeFromShoppingList = e.target.checked; });
+
+        content.querySelector("#ing-cat-row").addEventListener("click", () => {
+          openCategoryPicker("ingredient", selectedCategory ? selectedCategory.id : null, (cat) => {
+            selectedCategory = cat;
+            refresh();
+          });
+        });
+
+        content.querySelectorAll(".danger-remove-unit").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const idx = parseInt(e.target.closest("[data-unit-idx]").dataset.unitIdx, 10);
+            ingredient.units.splice(idx, 1);
+            refresh();
+          });
+        });
+
+        content.querySelector("#add-unit-row").addEventListener("click", () => {
+          const unit = prompt(isRo ? "Nume unitate (ex: kg, buc)" : "Unit name (e.g. kg, pcs)", COMMON_UNITS[0]);
+          if (!unit) return;
+          const qtyStr = prompt(isRo ? "Cantitate implicită" : "Default quantity", "1");
+          const qty = parseFloat(qtyStr);
+          if (!qtyStr || isNaN(qty)) return;
+          ingredient.units = ingredient.units || [];
+          ingredient.units.push({ unit: unit.trim(), defaultQty: qty });
+          refresh();
+        });
+
+        const deleteRow = content.querySelector("#delete-ing-row");
+        if (deleteRow) {
+          deleteRow.addEventListener("click", async () => {
+            if (!confirm(isRo ? "Ștergi acest ingredient?" : "Delete this ingredient?")) return;
+            await DB.delete("ingredients", ingredient.id);
+            screen.close();
+            onSaved && onSaved();
+          });
+        }
+      }
+    });
+  }
+  window.openIngredientEditor = openIngredientEditor;
+
+  function escapeAttr(str) {
+    return (str || "").replace(/"/g, "&quot;");
+  }
+  function escapeHtml(str) {
+    return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  window.escapeAttr = escapeAttr;
+  window.escapeHtml = escapeHtml;
+  function capitalizeFirstLetter(str) {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+  function attachAutoCapitalize(inputEl, onChange) {
+    inputEl.addEventListener("input", () => {
+      const val = inputEl.value;
+      const capped = capitalizeFirstLetter(val);
+      if (capped !== val) {
+        const pos = inputEl.selectionStart;
+        inputEl.value = capped;
+        inputEl.setSelectionRange(pos, pos);
+      }
+      onChange && onChange(inputEl.value);
+    });
+  }
+  window.capitalizeFirstLetter = capitalizeFirstLetter;
+  window.attachAutoCapitalize = attachAutoCapitalize;
+
+  async function renderIngredientsScreen() {
+    const listEl = document.getElementById("ingredients-list");
+    const searchInput = document.getElementById("ingredients-search");
+    if (!listEl) return;
+
+    async function draw() {
+      const filter = (searchInput.value || "").toLowerCase();
+      const [ingredients, categories] = await Promise.all([
+        DB.getAll("ingredients"),
+        getCategoriesSorted("ingredient")
+      ]);
+      const filtered = ingredients.filter((i) => i.name.toLowerCase().includes(filter));
+      const catById = Object.fromEntries(categories.map((c) => [c.id, c]));
+      const groups = new Map();
+      const noCategory = [];
+      filtered.forEach((ing) => {
+        if (ing.categoryId && catById[ing.categoryId]) {
+          if (!groups.has(ing.categoryId)) groups.set(ing.categoryId, []);
+          groups.get(ing.categoryId).push(ing);
+        } else {
+          noCategory.push(ing);
+        }
+      });
+
+      listEl.innerHTML = "";
+      categories.forEach((cat) => {
+        const items = groups.get(cat.id);
+        if (!items || !items.length) return;
+        listEl.appendChild(buildGroup(cat.icon + " " + cat.name, items));
+      });
+      if (noCategory.length) {
+        listEl.appendChild(buildGroup(I18N.lang === "ro" ? "Fără categorie" : "No Category", noCategory));
+      }
+
+      function buildGroup(title, items) {
+        const wrap = document.createElement("div");
+        const header = document.createElement("div");
+        header.className = "group-header";
+        header.textContent = title;
+        wrap.appendChild(header);
+        const card = document.createElement("div");
+        card.className = "list-card";
+        items.sort((a, b) => a.name.localeCompare(b.name)).forEach((ing) => {
+          const row = document.createElement("div");
+          row.className = "list-row tappable";
+          const unitsLabel = (ing.units && ing.units.length)
+            ? ing.units.map((u) => u.defaultQty + " " + escapeHtml(u.unit)).join(", ")
+            : "";
+          row.innerHTML = '<span class="row-title">' + escapeHtml(ing.name) + "</span>" + (unitsLabel ? '<span class="rating-badge">' + unitsLabel + "</span>" : "");
+          row.addEventListener("click", () => openIngredientEditor(ing.id, draw));
+          card.appendChild(row);
+          makeSwipeable(row, async () => {
+            await DB.delete("ingredients", ing.id);
+            draw();
+          });
+        });
+        wrap.appendChild(card);
+        return wrap;
+      }
+    }
+
+    searchInput.oninput = draw;
+    await draw();
+  }
+  window.renderIngredientsScreen = renderIngredientsScreen;
+
+  /* =========================================================
+     Shopping List (ad-hoc, Shopping tab)
+     ========================================================= */
+  async function renderShoppingScreen() {
+    const listEl = document.getElementById("shopping-list");
+    const searchInput = document.getElementById("shopping-search");
+    if (!listEl) return;
+    const isRo = I18N.lang === "ro";
+
+    async function draw() {
+      const filter = (searchInput.value || "").toLowerCase();
+      const all = await DB.getAll("shoppingList");
+      const items = all.filter((it) => it.source === "adhoc" && it.name.toLowerCase().includes(filter));
+      items.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+
+      listEl.innerHTML = "";
+      const card = document.createElement("div");
+      card.className = "list-card";
+      items.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "list-row";
+        const qtyLabel = (item.quantity != null && item.unit) ? (item.quantity + " " + escapeHtml(item.unit)) : "";
+        row.innerHTML =
+          '<span class="checkbox-circle' + (item.checked ? " checked" : "") + '" data-check-id="' + item.id + '">' + (item.checked ? "✓" : "") + "</span>" +
+          '<span class="row-title' + (item.checked ? " strikethrough" : "") + '">' + escapeHtml(item.name) + "</span>" +
+          (qtyLabel ? '<span class="rating-badge">' + qtyLabel + "</span>" : "");
+        row.querySelector("[data-check-id]").addEventListener("click", async () => {
+          item.checked = !item.checked;
+          await DB.put("shoppingList", item);
+          draw();
+        });
+        card.appendChild(row);
+        makeSwipeable(row, async () => {
+          await DB.delete("shoppingList", item.id);
+          draw();
+        });
+      });
+      listEl.appendChild(card);
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "placeholder";
+        empty.textContent = isRo ? "Lista de cumpărături e goală" : "Shopping list is empty";
+        listEl.appendChild(empty);
+      }
+    }
+
+    searchInput.oninput = draw;
+    await draw();
+  }
+  window.renderShoppingScreen = renderShoppingScreen;
+
+  function addAdhocShoppingItem(onAdded) {
+    const isRo = I18N.lang === "ro";
+    const name = prompt(isRo ? "Nume articol" : "Item name");
+    if (!name || !name.trim()) return;
+    const qtyStr = prompt(isRo ? "Cantitate (opțional)" : "Quantity (optional)", "");
+    const unit = qtyStr ? prompt(isRo ? "Unitate (opțional)" : "Unit (optional)", "") : "";
+    const item = {
+      id: uuid(),
+      source: "adhoc",
+      name: capitalizeFirstLetter(name.trim()),
+      quantity: qtyStr ? parseFloat(qtyStr) : null,
+      unit: unit ? unit.trim() : "",
+      checked: false,
+      createdAt: nowISO()
+    };
+    DB.put("shoppingList", item).then(() => onAdded && onAdded());
+  }
+  window.addAdhocShoppingItem = addAdhocShoppingItem;
+
+  /* =========================================================
+     Ingredient picker (used when adding ingredients to a recipe)
+     ========================================================= */
+  function openIngredientPicker(existingIds, onAdd) {
+    const isRo = I18N.lang === "ro";
+    let addNewHandler = null;
+    const screen = pushScreen({
+      title: isRo ? "Caută produs" : "Search Product",
+      left: { label: isRo ? "Terminat" : "Done" },
+      right: {
+        label: "+ " + (isRo ? "Adaugă" : "Add"),
+        action: () => { addNewHandler && addNewHandler(); }
+      },
+      async render(content, refresh) {
+        const all = await DB.getAll("ingredients");
+        all.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+
+        content.innerHTML =
+          '<div class="search-bar-wrap"><input type="text" id="picker-search" class="search-input" placeholder="' + (isRo ? "Caută..." : "Search...") + '"/></div>' +
+          '<div class="group-header">' + (isRo ? "Rezultate" : "Search results") + '</div>' +
+          '<div class="list-card" id="picker-results"></div>';
+
+        const rightBtn = screen.element.querySelector('[data-nav="right"]');
+        rightBtn.style.display = "none";
+        const searchInput = content.querySelector("#picker-search");
+        const resultsEl = content.querySelector("#picker-results");
+        let expandedId = null;
+
+        function drawResults() {
+          const filter = (searchInput.value || "").toLowerCase();
+          const filtered = all.filter((i) => i.name.toLowerCase().includes(filter));
+          rightBtn.style.display = (filter && filtered.length === 0) ? "inline-flex" : "none";
+          resultsEl.innerHTML = filtered.map((ing) => {
+            const added = existingIds.has(ing.id);
+            const isExpanded = expandedId === ing.id;
+            let extra = "";
+            if (isExpanded) {
+              const units = (ing.units && ing.units.length) ? ing.units : [{ unit: COMMON_UNITS[0], defaultQty: 1 }];
+              const defaultUnit = units[0];
+              extra =
+                '<div class="form-row extra-field-row"><label>' + (isRo ? "Cantitate" : "Quantity") + '</label>' +
+                '<input type="number" id="qty-input" value="' + defaultUnit.defaultQty + '" step="any"/>' +
+                '<select id="unit-select">' +
+                units.map((u) => '<option value="' + escapeAttr(u.unit) + '">' + u.unit + "</option>").join("") +
+                COMMON_UNITS.filter((cu) => !units.some((u) => u.unit === cu)).map((cu) => '<option value="' + cu + '">' + cu + "</option>").join("") +
+                "</select></div>";
+            }
+            return '<div class="picker-row-wrap" data-ing-id="' + ing.id + '">' +
+              '<div class="list-row tappable"><span>' + (added ? "✅" : "⬜️") + '</span><span class="row-title' + (added ? '" style="text-decoration:line-through;color:var(--text-secondary)' : '') + '">' + escapeHtml(ing.name) + "</span></div>" +
+              extra +
+              "</div>";
+          }).join("");
+
+          resultsEl.querySelectorAll(".picker-row-wrap").forEach((wrap) => {
+            const id = wrap.dataset.ingId;
+            const ing = all.find((i) => i.id === id);
+            const mainRow = wrap.querySelector(".list-row");
+            mainRow.addEventListener("click", () => {
+              if (existingIds.has(id)) return; // already added, ignore
+              if (expandedId !== id) {
+                expandedId = id;
+                drawResults();
+                return;
+              }
+              // second tap -> confirm add with current/default values
+              confirmAdd(ing);
+            });
+            const qtyInput = wrap.querySelector("#qty-input");
+            const unitSelect = wrap.querySelector("#unit-select");
+            if (qtyInput && unitSelect) {
+              [qtyInput, unitSelect].forEach((el) => {
+                el.addEventListener("click", (e) => e.stopPropagation());
+              });
+              qtyInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") { confirmAdd(ing, qtyInput.value, unitSelect.value); }
+              });
+            }
+          });
+        }
+
+        async function confirmAdd(ing, qtyOverride, unitOverride) {
+          if (existingIds.has(ing.id)) return; // safety guard, don't add twice
+          const wrap = resultsEl.querySelector('[data-ing-id="' + ing.id + '"]');
+          const qtyInput = wrap.querySelector("#qty-input");
+          const unitSelect = wrap.querySelector("#unit-select");
+          const qty = parseFloat(qtyOverride !== undefined ? qtyOverride : (qtyInput ? qtyInput.value : 1)) || 1;
+          const unit = unitOverride !== undefined ? unitOverride : (unitSelect ? unitSelect.value : (ing.units[0] ? ing.units[0].unit : COMMON_UNITS[0]));
+
+          // auto-learn new unit for this ingredient
+          ing.units = ing.units || [];
+          if (!ing.units.some((u) => u.unit === unit)) {
+            ing.units.push({ unit, defaultQty: qty });
+          }
+          ing.usageCount = (ing.usageCount || 0) + 1;
+          ing.updatedAt = nowISO();
+          await DB.put("ingredients", ing);
+
+          existingIds.add(ing.id);
+          onAdd({ ingredientId: ing.id, name: ing.name, unit, quantity: qty });
+          expandedId = null;
+          searchInput.value = "";
+          searchInput.focus();
+          drawResults();
+        }
+
+        searchInput.addEventListener("input", drawResults);
+        addNewHandler = () => {
+          const prefillName = capitalizeFirstLetter(searchInput.value.trim());
+          openIngredientEditor(null, async () => {
+            const refreshed = await DB.getAll("ingredients");
+            all.length = 0;
+            all.push(...refreshed);
+            all.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+            drawResults();
+          }, prefillName);
+        };
+
+        drawResults();
+        searchInput.select();
+      }
+    });
+    return screen;
+  }
+  window.openIngredientPicker = openIngredientPicker;
+
+  /* =========================================================
+     Recipes
+     ========================================================= */
+  const TOGGLE_DEFS = [
+    { key: "wash", emoji: "🧼", en: "Wash", ro: "Spălare" },
+    { key: "peel", emoji: "🥔", en: "Peel", ro: "Curățare" },
+    { key: "cut", emoji: "🔪", en: "Cut", ro: "Tăiere" },
+    { key: "mix", emoji: "🥣", en: "Mix", ro: "Amestecare" },
+    { key: "blend", emoji: "🌀", en: "Blend", ro: "Blender" },
+    { key: "decorate", emoji: "🎂", en: "Decorate", ro: "Decorare" },
+    { key: "boil", emoji: "♨️", en: "Boil", ro: "Fierbere" },
+    { key: "oven", emoji: "🔥", en: "Oven", ro: "Cuptor" },
+    { key: "waiting", emoji: "🌙", en: "Waiting", ro: "Așteptare" }
+  ];
+  window.TOGGLE_DEFS = TOGGLE_DEFS;
+
+  function avgRating(ratings) {
+    const vals = Object.values(ratings || {}).filter((v) => v > 0);
+    if (!vals.length) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+
+  async function openRatingPopup(recipe, onSaved) {
+    const isRo = I18N.lang === "ro";
+    const members = await DB.getAll("familyMembers");
+    const ratings = Object.assign({}, recipe.ratings || {});
+    const screen = pushScreen({
+      title: isRo ? "Evaluare" : "Rating",
+      left: { label: isRo ? "Închide" : "Close" },
+      right: {
+        label: isRo ? "Salvează" : "Save",
+        action: async (close) => {
+          recipe.ratings = ratings;
+          recipe.updatedAt = nowISO();
+          await DB.put("recipes", recipe);
+          close();
+          onSaved && onSaved();
+        }
+      },
+      render(content, refresh) {
+        content.innerHTML = members.map((m) => {
+          const score = ratings[m.id] || 0;
+          let stars = "";
+          for (let i = 1; i <= 5; i++) {
+            stars += '<span class="star' + (i <= score ? " filled" : "") + '" data-member="' + m.id + '" data-score="' + i + '">★</span>';
+          }
+          return '<div class="star-row"><span class="member-name">' + escapeHtml(m.name) + '</span><span class="stars">' + stars + "</span></div>";
+        }).join("");
+        content.querySelectorAll(".star").forEach((star) => {
+          star.addEventListener("click", () => {
+            ratings[star.dataset.member] = parseInt(star.dataset.score, 10);
+            refresh();
+          });
+        });
+      }
+    });
+  }
+
+  /* =========================================================
+     Recipe-ingredient usage editor (quantity/unit/note for this recipe)
+     ========================================================= */
+  function openRecipeIngredientEditor(ri, onSaved) {
+    const isRo = I18N.lang === "ro";
+    const screen = pushScreen({
+      title: ri.name,
+      left: { label: isRo ? "Anulează" : "Cancel" },
+      right: {
+        label: isRo ? "Salvează" : "Save",
+        action: (close) => {
+          const qtyInput = screen.element.querySelector("#ri-qty");
+          const unitInput = screen.element.querySelector("#ri-unit");
+          const noteInput = screen.element.querySelector("#ri-note");
+          const qty = parseFloat(qtyInput.value);
+          ri.quantity = isNaN(qty) ? ri.quantity : qty;
+          ri.unit = unitInput.value.trim() || ri.unit;
+          ri.note = noteInput.value.trim();
+          close();
+          onSaved && onSaved();
+        }
+      },
+      render(content) {
+        content.innerHTML =
+          '<div class="form-row"><label>' + (isRo ? "Cantitate" : "Quantity") + '</label><input type="number" id="ri-qty" value="' + ri.quantity + '" step="any"/></div>' +
+          '<div class="form-row"><label>' + (isRo ? "Unitate" : "Unit") + '</label><input type="text" id="ri-unit" value="' + escapeAttr(ri.unit) + '"/></div>' +
+          '<div class="form-row"><label>' + (isRo ? "Notă" : "Note") + '</label><input type="text" id="ri-note" value="' + escapeAttr(ri.note || "") + '"/></div>';
+      }
+    });
+    return screen;
+  }
+  window.openRecipeIngredientEditor = openRecipeIngredientEditor;
+
+  async function openRecipeEditor(recipeId, onSaved, prefillName) {
+    const isRo = I18N.lang === "ro";
+    const isNew = !recipeId;
+    let recipe = isNew
+      ? { id: uuid(), categoryId: null, name: prefillName || "", toggles: {}, boilTime: 20, ovenTemp: 180, ovenTime: 60, waitingHours: 8, ingredients: [], preparationText: "", preparationPhoto: null, sourceUrl: "", totalDuration: null, ratings: {}, photo: null }
+      : await DB.get("recipes", recipeId);
+    let selectedCategory = recipe.categoryId ? await DB.get("recipeCategories", recipe.categoryId) : null;
+
+    const screen = pushScreen({
+      title: isNew ? (isRo ? "Rețetă nouă" : "New Recipe") : (isRo ? "Editează rețeta" : "Edit Recipe"),
+      left: { label: isRo ? "Anulează" : "Cancel" },
+      right: {
+        label: isRo ? "Salvează" : "Save",
+        action: async (close) => {
+          const nameInput = screen.element.querySelector("#rec-name");
+          const name = nameInput.value.trim();
+          if (!name) { nameInput.focus(); return; }
+          recipe.name = name;
+          recipe.categoryId = selectedCategory ? selectedCategory.id : null;
+          recipe.preparationText = screen.element.querySelector("#rec-prep").value;
+          recipe.sourceUrl = screen.element.querySelector("#rec-source").value.trim();
+          const durVal = screen.element.querySelector("#rec-duration").value;
+          recipe.totalDuration = durVal ? parseFloat(durVal) : null;
+          recipe.updatedAt = nowISO();
+          await DB.put("recipes", recipe);
+          close();
+          onSaved && onSaved();
+        }
+      },
+      render(content, refresh) {
+        const avg = avgRating(recipe.ratings);
+        content.innerHTML =
+          '<div class="form-row"><label>' + (isRo ? "Nume" : "Name") + '</label><input type="text" id="rec-name" value="' + escapeAttr(recipe.name) + '"/>' +
+          (avg ? '<span class="rating-badge" id="rec-avg-badge">⭐ ' + avg.toFixed(1) + "</span>" : "") + "</div>" +
+          '<div class="form-row tappable" id="rec-cat-row"><label>' + (isRo ? "Categorie" : "Category") + '</label><span style="flex:1">' + (selectedCategory ? selectedCategory.icon + " " + selectedCategory.name : (isRo ? "Fără categorie" : "None")) + '</span><span class="chevron">›</span></div>' +
+          '<div class="form-row tappable" id="rec-rate-row"><label>' + (isRo ? "Evaluare" : "Rating") + '</label><span style="flex:1">' + (avg ? avg.toFixed(1) + " ★" : (isRo ? "Neevaluat" : "Not rated")) + '</span><span class="chevron">›</span></div>' +
+
+          '<div class="group-header">' + (isRo ? "Pași de preparare" : "Preparation steps") + '</div>' +
+          '<div class="chip-grid" id="toggle-grid">' +
+          TOGGLE_DEFS.map((t) => '<div class="chip' + (recipe.toggles[t.key] ? " active" : "") + '" data-toggle="' + t.key + '">' + t.emoji + " " + (isRo ? t.ro : t.en) + "</div>").join("") +
+          "</div>" +
+          (recipe.toggles.boil ? '<div class="form-row extra-field-row"><label>' + (isRo ? "Timp fierbere (min)" : "Boil time (min)") + '</label><input type="number" id="rec-boil-time" value="' + (recipe.boilTime ?? 20) + '"/></div>' : "") +
+          (recipe.toggles.oven ? '<div class="form-row extra-field-row"><label>' + (isRo ? "Temp. cuptor (°C)" : "Oven temp (°C)") + '</label><input type="number" id="rec-oven-temp" value="' + (recipe.ovenTemp ?? 180) + '"/></div>' +
+            '<div class="form-row extra-field-row"><label>' + (isRo ? "Timp cuptor (min)" : "Oven time (min)") + '</label><input type="number" id="rec-oven-time" value="' + (recipe.ovenTime ?? 60) + '"/></div>' : "") +
+          (recipe.toggles.waiting ? '<div class="form-row extra-field-row"><label>' + (isRo ? "Ore așteptare" : "Waiting hours") + '</label><input type="number" id="rec-waiting-hours" value="' + (recipe.waitingHours ?? 8) + '"/></div>' : "") +
+
+          '<div class="group-header" style="justify-content:space-between;"><span>' + (isRo ? "Ingrediente" : "Ingredients") + '</span><span id="add-ing-row" style="color:var(--accent);font-size:20px;cursor:pointer;">+</span></div>' +
+          '<div class="list-card" id="rec-ingredients-list">' +
+          recipe.ingredients.map((ri, idx) =>
+            '<div class="list-row tappable" data-ing-row-idx="' + idx + '"><span class="row-title">' + escapeHtml(ri.name) + (ri.note ? ' <span style="color:var(--text-secondary);font-size:13px;">(' + escapeHtml(ri.note) + ')</span>' : "") + '</span><span class="rating-badge">' + ri.quantity + " " + escapeHtml(ri.unit) + "</span></div>"
+          ).join("") +
+          "</div>" +
+
+          '<div class="group-header">' + (isRo ? "Preparare" : "Preparation") + '</div>' +
+          '<div class="form-row"><textarea id="rec-prep" placeholder="' + (isRo ? "Descriere preparare..." : "Preparation text...") + '">' + escapeHtml(recipe.preparationText || "") + "</textarea></div>" +
+          (recipe.preparationPhoto ? '<img class="photo-preview" src="' + recipe.preparationPhoto + '"/>' : "") +
+          '<div class="add-row" id="add-prep-photo-row">' + (recipe.preparationPhoto ? (isRo ? "Înlocuiește poza" : "Replace photo") : "+ " + (isRo ? "Adaugă poză" : "Add photo")) + "</div>" +
+          '<input type="file" accept="image/*" id="prep-photo-input" style="display:none"/>' +
+
+          '<div class="form-row"><label>' + (isRo ? "Sursă (link)" : "Source URL") + '</label><input type="url" id="rec-source" value="' + escapeAttr(recipe.sourceUrl || "") + '"/></div>' +
+          '<div class="form-row"><label>' + (isRo ? "Durată totală (min)" : "Total duration (min)") + '</label><input type="number" id="rec-duration" value="' + (recipe.totalDuration ?? "") + '"/></div>' +
+
+          '<div class="group-header">' + (isRo ? "Poză rețetă" : "Recipe photo") + "</div>" +
+          (recipe.photo ? '<img class="photo-preview" src="' + recipe.photo + '"/>' : "") +
+          '<div class="add-row" id="add-recipe-photo-row">' + (recipe.photo ? (isRo ? "Înlocuiește poza" : "Replace photo") : "+ " + (isRo ? "Adaugă poză" : "Add photo")) + "</div>" +
+          '<input type="file" accept="image/*" id="recipe-photo-input" style="display:none"/>' +
+
+          (isNew ? "" : '<div class="danger-row" id="delete-rec-row">' + (isRo ? "Șterge rețeta" : "Delete Recipe") + "</div>");
+
+        attachAutoCapitalize(content.querySelector("#rec-name"), (val) => { recipe.name = val; });
+        content.querySelector("#rec-prep").addEventListener("input", (e) => { recipe.preparationText = e.target.value; });
+        content.querySelector("#rec-source").addEventListener("input", (e) => { recipe.sourceUrl = e.target.value; });
+        content.querySelector("#rec-duration").addEventListener("input", (e) => { recipe.totalDuration = e.target.value ? parseFloat(e.target.value) : null; });
+
+        content.querySelector("#rec-cat-row").addEventListener("click", () => {
+          openCategoryPicker("recipe", selectedCategory ? selectedCategory.id : null, (cat) => {
+            selectedCategory = cat;
+            refresh();
+          });
+        });
+
+        content.querySelector("#rec-rate-row").addEventListener("click", () => {
+          openRatingPopup(recipe, () => refresh());
+        });
+
+        content.querySelectorAll("[data-toggle]").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            const key = chip.dataset.toggle;
+            recipe.toggles[key] = !recipe.toggles[key];
+            refresh();
+          });
+        });
+
+        content.querySelector("#add-ing-row").addEventListener("click", () => {
+          const existingIds = new Set(recipe.ingredients.map((i) => i.ingredientId));
+          openIngredientPicker(existingIds, (item) => {
+            recipe.ingredients.push(item);
+            refresh();
+          });
+        });
+
+        content.querySelectorAll("[data-ing-row-idx]").forEach((row) => {
+          row.addEventListener("click", () => {
+            const idx = parseInt(row.dataset.ingRowIdx, 10);
+            openRecipeIngredientEditor(recipe.ingredients[idx], () => {
+              refresh();
+            });
+          });
+          makeSwipeable(row, () => {
+            const idx = parseInt(row.dataset.ingRowIdx, 10);
+            recipe.ingredients.splice(idx, 1);
+            refresh();
+          });
+        });
+
+        function wirePhotoRow(rowId, inputId, field) {
+          const row = content.querySelector(rowId);
+          const input = content.querySelector(inputId);
+          row.addEventListener("click", () => input.click());
+          input.addEventListener("change", async () => {
+            if (!input.files || !input.files[0]) return;
+            recipe[field] = await compressImageFile(input.files[0]);
+            refresh();
+          });
+        }
+        wirePhotoRow("#add-prep-photo-row", "#prep-photo-input", "preparationPhoto");
+        wirePhotoRow("#add-recipe-photo-row", "#recipe-photo-input", "photo");
+
+        const deleteRow = content.querySelector("#delete-rec-row");
+        if (deleteRow) {
+          deleteRow.addEventListener("click", async () => {
+            if (!confirm(isRo ? "Ștergi această rețetă?" : "Delete this recipe?")) return;
+            await DB.delete("recipes", recipe.id);
+            screen.close();
+            onSaved && onSaved();
+          });
+        }
+
+        // preserve boil/oven/waiting extra field edits when toggling other chips
+        ["rec-boil-time", "rec-oven-temp", "rec-oven-time", "rec-waiting-hours"].forEach((id) => {
+          const el = content.querySelector("#" + id);
+          if (!el) return;
+          el.addEventListener("input", () => {
+            if (id === "rec-boil-time") recipe.boilTime = parseFloat(el.value) || 0;
+            if (id === "rec-oven-temp") recipe.ovenTemp = parseFloat(el.value) || 0;
+            if (id === "rec-oven-time") recipe.ovenTime = parseFloat(el.value) || 0;
+            if (id === "rec-waiting-hours") recipe.waitingHours = parseFloat(el.value) || 0;
+          });
+        });
+      }
+    });
+  }
+  window.openRecipeEditor = openRecipeEditor;
+
+  async function renderRecipesScreen() {
+    const listEl = document.getElementById("recipes-list");
+    const searchInput = document.getElementById("recipes-search");
+    if (!listEl) return;
+
+    async function draw() {
+      const filter = (searchInput.value || "").toLowerCase();
+      const [recipes, categories] = await Promise.all([
+        DB.getAll("recipes"),
+        getCategoriesSorted("recipe")
+      ]);
+      const filtered = recipes.filter((r) => r.name.toLowerCase().includes(filter));
+      const catById = Object.fromEntries(categories.map((c) => [c.id, c]));
+      const groups = new Map();
+      const noCategory = [];
+      filtered.forEach((r) => {
+        if (r.categoryId && catById[r.categoryId]) {
+          if (!groups.has(r.categoryId)) groups.set(r.categoryId, []);
+          groups.get(r.categoryId).push(r);
+        } else {
+          noCategory.push(r);
+        }
+      });
+
+      listEl.innerHTML = "";
+      categories.forEach((cat) => {
+        const items = groups.get(cat.id);
+        if (!items || !items.length) return;
+        listEl.appendChild(buildGroup(cat.icon + " " + cat.name, items));
+      });
+      if (noCategory.length) {
+        listEl.appendChild(buildGroup(I18N.lang === "ro" ? "Fără categorie" : "No Category", noCategory));
+      }
+
+      function buildGroup(title, items) {
+        const wrap = document.createElement("div");
+        const header = document.createElement("div");
+        header.className = "group-header";
+        header.textContent = title;
+        wrap.appendChild(header);
+        const card = document.createElement("div");
+        card.className = "list-card";
+        items.sort((a, b) => a.name.localeCompare(b.name)).forEach((r) => {
+          const avg = avgRating(r.ratings);
+          const row = document.createElement("div");
+          row.className = "list-row tappable";
+          row.innerHTML = '<span class="row-title">' + escapeHtml(r.name) + "</span>" + (avg ? '<span class="rating-badge">⭐ ' + avg.toFixed(1) + "</span>" : "");
+          row.addEventListener("click", () => openRecipeEditor(r.id, draw));
+          card.appendChild(row);
+          makeSwipeable(row, async () => {
+            await DB.delete("recipes", r.id);
+            draw();
+          });
+        });
+        wrap.appendChild(card);
+        return wrap;
+      }
+    }
+
+    searchInput.oninput = draw;
+    await draw();
+  }
+  window.renderRecipesScreen = renderRecipesScreen;
+
+  /* =========================================================
+     Admin screen: family members + language/accent color settings
+     ========================================================= */
+  const ACCENT_COLOR_CHOICES = ["#007aff", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#5ac8fa", "#af52de", "#ff2d55"];
+
+  async function renderAdminScreen() {
+    const container = document.getElementById("admin-content");
+    if (!container) return;
+    const isRo = I18N.lang === "ro";
+
+    async function draw() {
+      const members = await DB.getAll("familyMembers");
+      members.sort((a, b) => a.name.localeCompare(b.name));
+      const currentColor = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+
+      container.innerHTML = "";
+
+      const langHeader = document.createElement("div");
+      langHeader.className = "group-header";
+      langHeader.textContent = I18N.t("admin.settings");
+      container.appendChild(langHeader);
+
+      const langRow = document.createElement("div");
+      langRow.className = "lang-switch-row";
+      langRow.innerHTML =
+        '<button class="lang-switch-btn' + (I18N.lang === "en" ? " active" : "") + '" data-lang="en">English</button>' +
+        '<button class="lang-switch-btn' + (I18N.lang === "ro" ? " active" : "") + '" data-lang="ro">Română</button>';
+      container.appendChild(langRow);
+      langRow.querySelectorAll("[data-lang]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          I18N.setLang(btn.dataset.lang);
+          DB.put("settings", { id: "lang", value: btn.dataset.lang });
+          draw();
+        });
+      });
+
+      const colorHeader = document.createElement("div");
+      colorHeader.className = "group-header";
+      colorHeader.textContent = I18N.t("admin.accentColor");
+      container.appendChild(colorHeader);
+
+      const colorRow = document.createElement("div");
+      colorRow.className = "color-swatch-grid";
+      ACCENT_COLOR_CHOICES.forEach((hex) => {
+        const sw = document.createElement("div");
+        sw.className = "color-swatch" + (hex.toLowerCase() === currentColor.toLowerCase() ? " selected" : "");
+        sw.style.background = hex;
+        sw.addEventListener("click", () => {
+          window.setAccentColor(hex);
+          draw();
+        });
+        colorRow.appendChild(sw);
+      });
+      container.appendChild(colorRow);
+
+      const membersHeader = document.createElement("div");
+      membersHeader.className = "group-header";
+      membersHeader.textContent = I18N.t("admin.familyMembers");
+      container.appendChild(membersHeader);
+
+      const membersCard = document.createElement("div");
+      membersCard.className = "list-card";
+      members.forEach((m) => {
+        const row = document.createElement("div");
+        row.className = "list-row";
+        row.innerHTML =
+          '<input type="text" class="row-title" style="border:none;background:transparent;font-size:17px;color:var(--text);" value="' + escapeAttr(m.name) + '" />';
+        const input = row.querySelector("input");
+        input.addEventListener("change", async () => {
+          const val = input.value.trim();
+          if (!val) return;
+          m.name = val;
+          m.updatedAt = nowISO();
+          await DB.put("familyMembers", m);
+        });
+        membersCard.appendChild(row);
+        makeSwipeable(row, async () => {
+          await DB.delete("familyMembers", m.id);
+          draw();
+        });
+      });
+      container.appendChild(membersCard);
+
+      const addRow = document.createElement("div");
+      addRow.className = "add-row";
+      addRow.textContent = "+ " + I18N.t("admin.addMember");
+      addRow.addEventListener("click", async () => {
+        const name = prompt(I18N.t("admin.memberName"));
+        if (!name || !name.trim()) return;
+        await DB.put("familyMembers", { id: uuid(), name: name.trim(), updatedAt: nowISO() });
+        draw();
+      });
+      container.appendChild(addRow);
+    }
+
+    await draw();
+  }
+  window.renderAdminScreen = renderAdminScreen;
+
+  /* =========================================================
+     Tab activation hook: render lists + manage nav "+" button
+     ========================================================= */
+  window.onTabActivated = function (tabName) {
+    const rightBtn = document.getElementById("nav-right-btn");
+    if (!rightBtn) return;
+    rightBtn.onclick = null;
+    if (tabName === "ingredients") {
+      rightBtn.style.display = "inline-flex";
+      rightBtn.textContent = "+";
+      rightBtn.onclick = () => openIngredientEditor(null, renderIngredientsScreen);
+      renderIngredientsScreen();
+    } else if (tabName === "recipes") {
+      rightBtn.style.display = "inline-flex";
+      rightBtn.textContent = "+";
+      rightBtn.onclick = () => openRecipeEditor(null, renderRecipesScreen);
+      renderRecipesScreen();
+    } else if (tabName === "shopping") {
+      rightBtn.style.display = "inline-flex";
+      rightBtn.textContent = "+";
+      rightBtn.onclick = () => addAdhocShoppingItem(renderShoppingScreen);
+      renderShoppingScreen();
+    } else if (tabName === "menus" && typeof window.onMenusTabActivated === "function") {
+      window.onMenusTabActivated(rightBtn);
+    } else if (tabName === "admin") {
+      rightBtn.style.display = "none";
+      renderAdminScreen();
+    } else {
+      rightBtn.style.display = "none";
+    }
+  };
+
+})();
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================
+     Menus
+     ========================================================= */
+  function formatMenuDate(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString(I18N.lang === "ro" ? "ro-RO" : "en-US", { month: "short", day: "numeric" });
+  }
+
+  function defaultMenuName(dateStr) {
+    return (I18N.lang === "ro" ? "Meniu — " : "Menu — ") + formatMenuDate(dateStr);
+  }
+
+  function computeMethodIcons(recipe) {
+    const icons = [];
+    if (!recipe) return icons;
+    const t = recipe.toggles || {};
+    if (t.oven) icons.push({ emoji: "🔥", text: (recipe.ovenTemp ?? 180) + "°C " + (recipe.ovenTime ?? 60) + "m" });
+    if (t.boil) icons.push({ emoji: "♨️", text: (recipe.boilTime ?? 20) + "m" });
+    if (!t.oven && !t.boil) icons.push({ emoji: "❄️", text: "" });
+    return icons;
+  }
+
+  function todayISODate() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  async function createAndOpenMenu(onListChanged) {
+    const date = todayISODate();
+    const menu = { id: uuid(), name: defaultMenuName(date), date, recipes: [], updatedAt: nowISO() };
+    await DB.put("menus", menu);
+    openMenuDetail(menu.id, onListChanged);
+  }
+
+  /* =========================================================
+     Per-menu shopping list (aggregated from recipe ingredients,
+     plus ad-hoc extra items, checked/excluded state persisted)
+     ========================================================= */
+  async function openMenuShoppingList(menu) {
+    const isRo = I18N.lang === "ro";
+    let addMenuAdhocItem = () => {};
+    const screen = pushScreen({
+      title: isRo ? "Listă cumpărături" : "Shopping List",
+      left: { label: isRo ? "Terminat" : "Done" },
+      right: {
+        label: "+ " + (isRo ? "Adaugă" : "Add"),
+        action: () => { addMenuAdhocItem(); }
+      },
+      async render(content, refresh) {
+        const recipes = await Promise.all(menu.recipes.map((mr) => DB.get("recipes", mr.recipeId)));
+        const allProducts = await DB.getAll("ingredients");
+        const productById = Object.fromEntries(allProducts.map((p) => [p.id, p]));
+
+        // Aggregate ingredient quantities across all recipes in this menu, merging by ingredientId+unit
+        const aggregated = new Map();
+        recipes.forEach((rec) => {
+          if (!rec) return;
+          (rec.ingredients || []).forEach((ri) => {
+            const key = ri.ingredientId + "|" + ri.unit;
+            if (!aggregated.has(key)) {
+              aggregated.set(key, { ingredientId: ri.ingredientId, name: ri.name, unit: ri.unit, quantity: 0 });
+            }
+            aggregated.get(key).quantity += (ri.quantity || 0);
+          });
+        });
+
+        // Persisted state (checked / included) for this menu's shopping items
+        const stateId = "menu-" + menu.id;
+        let state = await DB.get("shoppingList", stateId);
+        if (!state) {
+          state = { id: stateId, source: "menu", menuId: menu.id, items: {}, extras: [] };
+        }
+        state.items = state.items || {};
+        state.extras = state.extras || [];
+
+        async function saveState() {
+          await DB.put("shoppingList", state);
+        }
+
+        const aggregatedList = Array.from(aggregated.values());
+        // Include excluded-from-shopping-list products too, but unchecked/grayed and only if explicitly added or already have state
+        aggregatedList.sort((a, b) => a.name.localeCompare(b.name));
+
+        function rowHtml(item, idKey, excludedByDefault) {
+          const itemState = state.items[idKey] || {};
+          const checked = !!itemState.checked;
+          const qtyLabel = item.unit ? (item.quantity + " " + escapeHtml(item.unit)) : (item.quantity || "");
+          return '<div class="list-row" data-item-key="' + idKey + '">' +
+            '<span class="checkbox-circle' + (checked ? " checked" : "") + '" data-check-key="' + idKey + '">' + (checked ? "✓" : "") + "</span>" +
+            '<span class="row-title' + (checked ? " strikethrough" : "") + (excludedByDefault ? '" style="color:var(--text-secondary)' : '') + '">' + escapeHtml(item.name) + "</span>" +
+            (qtyLabel ? '<span class="rating-badge">' + qtyLabel + "</span>" : "") +
+            "</div>";
+        }
+
+        let html = "";
+        const included = aggregatedList.filter((it) => {
+          const product = productById[it.ingredientId];
+          const excluded = product && product.excludeFromShoppingList;
+          return !excluded || state.items[it.ingredientId + "|" + it.unit];
+        });
+        const excludedOnly = aggregatedList.filter((it) => {
+          const product = productById[it.ingredientId];
+          const excluded = product && product.excludeFromShoppingList;
+          return excluded && !state.items[it.ingredientId + "|" + it.unit];
+        });
+
+        if (included.length) {
+          html += '<div class="group-header">' + (isRo ? "Din rețete" : "From recipes") + '</div><div class="list-card">' +
+            included.map((it) => rowHtml(it, it.ingredientId + "|" + it.unit, false)).join("") + "</div>";
+        }
+        if (state.extras.length) {
+          html += '<div class="group-header">' + (isRo ? "Adăugate" : "Added") + '</div><div class="list-card">' +
+            state.extras.map((ex, idx) => rowHtml(ex, "extra-" + idx, false)).join("") + "</div>";
+        }
+        if (excludedOnly.length) {
+          html += '<div class="group-header">' + (isRo ? "Excluse (atinge pentru a adăuga)" : "Excluded (tap to add)") + '</div><div class="list-card">' +
+            excludedOnly.map((it) => '<div class="list-row tappable" data-add-excluded-key="' + it.ingredientId + '|' + it.unit + '"><span class="row-title" style="color:var(--text-secondary)">' + escapeHtml(it.name) + '</span><span class="rating-badge">+</span></div>').join("") + "</div>";
+        }
+        if (!included.length && !state.extras.length && !excludedOnly.length) {
+          html += '<div class="placeholder">' + (isRo ? "Lista de cumpărături e goală" : "Shopping list is empty") + "</div>";
+        }
+        content.innerHTML = html;
+
+        content.querySelectorAll("[data-check-key]").forEach((el) => {
+          el.addEventListener("click", async () => {
+            const key = el.dataset.checkKey;
+            state.items[key] = state.items[key] || {};
+            state.items[key].checked = !state.items[key].checked;
+            await saveState();
+            refresh();
+          });
+        });
+        content.querySelectorAll("[data-add-excluded-key]").forEach((el) => {
+          el.addEventListener("click", async () => {
+            const key = el.dataset.addExcludedKey;
+            state.items[key] = state.items[key] || {};
+            await saveState();
+            refresh();
+          });
+        });
+
+        addMenuAdhocItem = function () {
+          const name = prompt(isRo ? "Nume articol" : "Item name");
+          if (!name || !name.trim()) return;
+          const qtyStr = prompt(isRo ? "Cantitate (opțional)" : "Quantity (optional)", "");
+          const unit = qtyStr ? prompt(isRo ? "Unitate (opțional)" : "Unit (optional)", "") : "";
+          state.extras.push({
+            name: capitalizeFirstLetter(name.trim()),
+            quantity: qtyStr ? parseFloat(qtyStr) : null,
+            unit: unit ? unit.trim() : ""
+          });
+          saveState().then(refresh);
+        };
+      }
+    });
+
+    return screen;
+  }
+  window.openMenuShoppingList = openMenuShoppingList;
+
+  function openRecipePickerForMenu(menu, onChange) {
+    const isRo = I18N.lang === "ro";
+    let addNewHandler = null;
+    const screen = pushScreen({
+      title: isRo ? "Caută rețetă" : "Search Recipe",
+      left: { label: isRo ? "Terminat" : "Done" },
+      right: {
+        label: "+ " + (isRo ? "Adaugă" : "Add"),
+        action: () => { addNewHandler && addNewHandler(); }
+      },
+      async render(content) {
+        const [recipes, categories] = await Promise.all([DB.getAll("recipes"), getCategoriesSorted("recipe")]);
+        const catById = Object.fromEntries(categories.map((c) => [c.id, c]));
+
+        content.innerHTML =
+          '<div class="search-bar-wrap"><input type="text" id="rpicker-search" class="search-input" placeholder="' + (isRo ? "Caută..." : "Search...") + '"/></div>' +
+          '<div id="rpicker-results"></div>';
+
+        const rightBtn = screen.element.querySelector('[data-nav="right"]');
+        rightBtn.style.display = "none";
+        const searchInput = content.querySelector("#rpicker-search");
+        const resultsEl = content.querySelector("#rpicker-results");
+
+        function isInMenu(id) { return menu.recipes.some((r) => r.recipeId === id); }
+
+        function drawResults() {
+          const filter = (searchInput.value || "").toLowerCase();
+          const filtered = recipes.filter((r) => r.name.toLowerCase().includes(filter));
+          rightBtn.style.display = (filter && filtered.length === 0) ? "inline-flex" : "none";
+
+          const groups = new Map();
+          const noCat = [];
+          filtered.forEach((r) => {
+            if (r.categoryId && catById[r.categoryId]) {
+              if (!groups.has(r.categoryId)) groups.set(r.categoryId, []);
+              groups.get(r.categoryId).push(r);
+            } else noCat.push(r);
+          });
+
+          let html = "";
+          categories.forEach((cat) => {
+            const items = groups.get(cat.id);
+            if (!items || !items.length) return;
+            html += '<div class="group-header">' + cat.icon + " " + escapeHtml(cat.name) + '</div><div class="list-card">' +
+              items.map((r) => rowHtml(r)).join("") + "</div>";
+          });
+          if (noCat.length) {
+            html += '<div class="group-header">' + (isRo ? "Fără categorie" : "No Category") + '</div><div class="list-card">' +
+              noCat.map((r) => rowHtml(r)).join("") + "</div>";
+          }
+          resultsEl.innerHTML = html;
+
+          function rowHtml(r) {
+            const added = isInMenu(r.id);
+            return '<div class="list-row tappable" data-recipe-id="' + r.id + '"><span>' + (added ? "✅" : "⬜️") +
+              '</span><span class="row-title' + (added ? '" style="text-decoration:line-through;color:var(--text-secondary)' : '') + '">' +
+              escapeHtml(r.name) + "</span></div>";
+          }
+
+          resultsEl.querySelectorAll("[data-recipe-id]").forEach((row) => {
+            row.addEventListener("click", () => {
+              const id = row.dataset.recipeId;
+              const rec = recipes.find((x) => x.id === id);
+              const idx = menu.recipes.findIndex((x) => x.recipeId === id);
+              if (idx >= 0) {
+                menu.recipes.splice(idx, 1);
+              } else {
+                menu.recipes.push({ recipeId: id, name: rec.name, checked: false });
+              }
+              menu.updatedAt = nowISO();
+              DB.put("menus", menu);
+              onChange();
+              drawResults();
+            });
+          });
+        }
+
+        searchInput.addEventListener("input", drawResults);
+        addNewHandler = () => {
+          const prefillName = capitalizeFirstLetter(searchInput.value.trim());
+          openRecipeEditor(null, async () => {
+            const refreshed = await DB.getAll("recipes");
+            recipes.length = 0;
+            recipes.push(...refreshed);
+            drawResults();
+          }, prefillName);
+        };
+
+        drawResults();
+      }
+    });
+    return screen;
+  }
+
+  /* =========================================================
+     Cooking Mode
+     ========================================================= */
+  function formatSecondsAsTimer(totalSec) {
+    const s = Math.max(0, Math.round(totalSec));
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+  }
+
+  function playCookingAlarm() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      let t = ctx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, t);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.25);
+        t += 0.35;
+      }
+    } catch (err) {
+      console.warn("Could not play cooking alarm sound:", err);
+    }
+  }
+
+  function openCookingMode(menu, onDone) {
+    const isRo = I18N.lang === "ro";
+    // Per-recipe-in-memory state: { doneSteps: {toggleKey:bool}, timers: { boil:{remainingSec,running,intervalId,totalSec}, oven:{...} }, finished: bool }
+    const state = new Map();
+
+    const screen = pushScreen({
+      title: isRo ? "Mod gătit" : "Cooking Mode",
+      left: {
+        label: isRo ? "Terminat" : "Done",
+        action: (close) => {
+          state.forEach((s) => {
+            ["boil", "oven"].forEach((k) => {
+              if (s.timers[k] && s.timers[k].intervalId) clearInterval(s.timers[k].intervalId);
+            });
+          });
+          close();
+          onDone && onDone();
+        }
+      },
+      async render(content, refresh) {
+        const recipesData = await Promise.all(menu.recipes.map((mr) => DB.get("recipes", mr.recipeId)));
+
+        recipesData.forEach((rec, idx) => {
+          if (!rec) return;
+          if (!state.has(rec.id)) {
+            state.set(rec.id, {
+              doneSteps: {},
+              timers: {
+                boil: { remainingSec: (rec.boilTime || 20) * 60, totalSec: (rec.boilTime || 20) * 60, running: false, intervalId: null },
+                oven: { remainingSec: (rec.ovenTime || 60) * 60, totalSec: (rec.ovenTime || 60) * 60, running: false, intervalId: null }
+              },
+              finished: !!menu.recipes[idx].checked
+            });
+          }
+        });
+
+        const stepToggleKeys = ["wash", "peel", "cut", "mix", "blend", "decorate"];
+
+        content.innerHTML = recipesData.map((rec, idx) => {
+          if (!rec) return "";
+          const s = state.get(rec.id);
+          const toggles = rec.toggles || {};
+          const stepsHtml = stepToggleKeys.filter((k) => toggles[k]).map((k) => {
+            const def = TOGGLE_DEFS.find((t) => t.key === k);
+            const checked = !!s.doneSteps[k];
+            return '<div class="cooking-toggle-item' + (checked ? " checked" : "") + '" data-recipe-id="' + rec.id + '" data-step-key="' + k + '">' +
+              '<span class="ct-check">' + (checked ? "✓" : "") + '</span>' +
+              '<span class="ct-label">' + def.emoji + ' ' + (isRo ? def.ro : def.en) + '</span></div>';
+          }).join("");
+
+          let timersHtml = "";
+          if (toggles.boil) timersHtml += cookingTimerRowHtml(rec.id, "boil", isRo ? "Fierbere" : "Boil", s.timers.boil);
+          if (toggles.oven) {
+            const ovenLabel = (isRo ? "Cuptor" : "Oven") + " (" + (rec.ovenTemp ?? 180) + "°C)";
+            timersHtml += cookingTimerRowHtml(rec.id, "oven", ovenLabel, s.timers.oven);
+          }
+          if (toggles.waiting) {
+            timersHtml += '<div class="cooking-timer-row"><span class="ct-timer-label">🌙 ' + (isRo ? "Așteptare" : "Waiting") + '</span>' +
+              '<span class="cooking-timer-display">' + (rec.waitingHours ?? 8) + 'h</span></div>';
+          }
+
+          return '<div class="cooking-recipe-card' + (s.finished ? " done" : "") + '" data-card-recipe-id="' + rec.id + '">' +
+            '<div class="cooking-recipe-header"><span class="cr-name">' + escapeHtml(rec.name) + '</span>' +
+            '<button class="cr-done-btn" data-finish-id="' + rec.id + '">' + (s.finished ? (isRo ? "Făcut ✓" : "Done ✓") : (isRo ? "Termină" : "Finish")) + '</button></div>' +
+            (stepsHtml ? '<div class="cooking-toggle-list">' + stepsHtml + '</div>' : "") +
+            timersHtml +
+            '<div class="cooking-link-row"><span data-view-steps-id="' + rec.id + '">📋 ' + (isRo ? "Pași" : "Steps") + '</span>' +
+            '<span data-view-ing-id="' + rec.id + '">🥕 ' + (isRo ? "Ingrediente" : "Ingredients") + '</span></div>' +
+            '</div>';
+        }).join("") || ('<div class="placeholder">' + (isRo ? "Niciun fel de mâncare în acest meniu" : "No recipes in this menu") + '</div>');
+
+        function cookingTimerRowHtml(recipeId, key, label, timer) {
+          const emoji = key === "boil" ? "♨️" : "🔥";
+          return '<div class="cooking-timer-row">' +
+            '<span class="ct-timer-label">' + emoji + ' ' + label + '</span>' +
+            '<div class="cooking-timer-controls">' +
+            '<span class="cooking-timer-display' + (timer.remainingSec <= 0 && timer.ringing ? " ringing" : "") + '" data-timer-display="' + recipeId + '|' + key + '">' + formatSecondsAsTimer(timer.remainingSec) + '</span>' +
+            '<button class="cooking-timer-btn" data-timer-toggle="' + recipeId + '|' + key + '">' + (timer.running ? (isRo ? "Pauză" : "Pause") : (isRo ? "Start" : "Start")) + '</button>' +
+            '<button class="cooking-timer-btn secondary" data-timer-reset="' + recipeId + '|' + key + '">↺</button>' +
+            '</div></div>';
+        }
+
+        content.querySelectorAll("[data-step-key]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const recipeId = el.dataset.recipeId;
+            const key = el.dataset.stepKey;
+            const s = state.get(recipeId);
+            s.doneSteps[key] = !s.doneSteps[key];
+            refresh();
+          });
+        });
+
+        content.querySelectorAll("[data-timer-toggle]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const [recipeId, key] = el.dataset.timerToggle.split("|");
+            const timer = state.get(recipeId).timers[key];
+            if (timer.running) {
+              clearInterval(timer.intervalId);
+              timer.intervalId = null;
+              timer.running = false;
+            } else {
+              timer.running = true;
+              timer.intervalId = setInterval(() => {
+                timer.remainingSec -= 1;
+                if (timer.remainingSec <= 0) {
+                  timer.remainingSec = 0;
+                  timer.running = false;
+                  timer.ringing = true;
+                  clearInterval(timer.intervalId);
+                  timer.intervalId = null;
+                  playCookingAlarm();
+                  alert((isRo ? "Timpul a expirat: " : "Time's up: ") + label(recipeId, key));
+                  refresh();
+                  return;
+                }
+                const display = content.querySelector('[data-timer-display="' + recipeId + '|' + key + '"]');
+                if (display) display.textContent = formatSecondsAsTimer(timer.remainingSec);
+              }, 1000);
+            }
+            refresh();
+          });
+        });
+
+        function label(recipeId, key) {
+          const rec = recipesData.find((r) => r && r.id === recipeId);
+          return (rec ? rec.name : "") + " — " + (key === "boil" ? (isRo ? "Fierbere" : "Boil") : (isRo ? "Cuptor" : "Oven"));
+        }
+
+        content.querySelectorAll("[data-timer-reset]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const [recipeId, key] = el.dataset.timerReset.split("|");
+            const timer = state.get(recipeId).timers[key];
+            if (timer.intervalId) clearInterval(timer.intervalId);
+            timer.intervalId = null;
+            timer.running = false;
+            timer.ringing = false;
+            timer.remainingSec = timer.totalSec;
+            refresh();
+          });
+        });
+
+        content.querySelectorAll("[data-finish-id]").forEach((el) => {
+          el.addEventListener("click", async () => {
+            const recipeId = el.dataset.finishId;
+            const s = state.get(recipeId);
+            ["boil", "oven"].forEach((k) => {
+              if (s.timers[k].intervalId) clearInterval(s.timers[k].intervalId);
+            });
+            s.finished = true;
+            await DB.put("cookingSessions", { id: uuid(), recipeId, endDateTime: nowISO() });
+            const mr = menu.recipes.find((m) => m.recipeId === recipeId);
+            if (mr) {
+              mr.checked = true;
+              menu.updatedAt = nowISO();
+              await DB.put("menus", menu);
+            }
+            refresh();
+          });
+        });
+
+        content.querySelectorAll("[data-view-steps-id]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const rec = recipesData.find((r) => r && r.id === el.dataset.viewStepsId);
+            openCookingInfoPopup(isRo ? "Pași de preparare" : "Preparation Steps", rec.preparationText || (isRo ? "Fără pași" : "No steps"), {
+              photo: rec.preparationPhoto,
+              sourceUrl: rec.sourceUrl
+            });
+          });
+        });
+        content.querySelectorAll("[data-view-ing-id]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const rec = recipesData.find((r) => r && r.id === el.dataset.viewIngId);
+            const html = (rec.ingredients || []).map((ri) =>
+              escapeHtml(ri.name) + (ri.quantity ? " — " + ri.quantity + (ri.unit ? " " + escapeHtml(ri.unit) : "") : "")
+            ).join("\n") || (isRo ? "Fără ingrediente" : "No ingredients");
+            openCookingInfoPopup(isRo ? "Ingrediente" : "Ingredients", html);
+          });
+        });
+      }
+    });
+    return screen;
+  }
+  window.openCookingMode = openCookingMode;
+
+  function normalizeUrl(url) {
+    if (!url) return url;
+    return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) ? url : "https://" + url;
+  }
+
+  function openCookingInfoPopup(title, text, extras) {
+    const isRo = I18N.lang === "ro";
+    extras = extras || {};
+    pushScreen({
+      title,
+      left: { label: isRo ? "Închide" : "Close" },
+      render(content) {
+        const normalizedUrl = normalizeUrl(extras.sourceUrl);
+        content.innerHTML =
+          (extras.photo ? '<img class="cooking-info-photo" id="cooking-info-photo" src="' + extras.photo + '"/>' : "") +
+          (normalizedUrl ? '<a class="cooking-info-link" href="' + escapeAttr(normalizedUrl) + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(extras.sourceUrl) + '</a><br/>' : "") +
+          '<div class="placeholder" style="white-space:pre-wrap;text-align:left;">' + escapeHtml(text) + '</div>';
+
+        const photoEl = content.querySelector("#cooking-info-photo");
+        if (photoEl) {
+          photoEl.addEventListener("click", () => openImageLightbox(extras.photo));
+        }
+      }
+    });
+  }
+
+  function openImageLightbox(src) {
+    const overlay = document.createElement("div");
+    overlay.className = "lightbox-overlay";
+    overlay.innerHTML = '<img src="' + src + '"/>';
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    const img = overlay.querySelector("img");
+    img.addEventListener("click", () => overlay.remove());
+    document.body.appendChild(overlay);
+  }
+
+  async function openMenuDetail(menuId, onListChanged) {
+    const isRo = I18N.lang === "ro";
+    let menu = await DB.get("menus", menuId);
+
+    const screen = pushScreen({
+      title: menu.name,
+      left: {
+        label: isRo ? "Terminat" : "Done",
+        action: (close) => { close(); onListChanged && onListChanged(); }
+      },
+      async render(content, refresh) {
+        const recipesData = await Promise.all(menu.recipes.map((mr) => DB.get("recipes", mr.recipeId)));
+        const remainingTime = menu.recipes.reduce((sum, mr, idx) => {
+          if (mr.checked) return sum;
+          const rec = recipesData[idx];
+          return sum + ((rec && rec.totalDuration) || 0);
+        }, 0);
+
+        content.innerHTML =
+          '<div class="form-row"><label>' + (isRo ? "Nume" : "Name") + '</label><input type="text" id="menu-name-input" value="' + escapeAttr(menu.name) + '"/></div>' +
+          '<div class="form-row"><label>' + (isRo ? "Dată" : "Date") + '</label><input type="date" id="menu-date-input" value="' + (menu.date || "") + '"/></div>' +
+          '<div class="group-header">' + (isRo ? "Rețete" : "Recipes") + '</div>' +
+          '<div class="list-card" id="menu-recipes-list">' +
+          menu.recipes.map((mr, idx) => {
+            const rec = recipesData[idx];
+            const icons = computeMethodIcons(rec);
+            const time = rec && rec.totalDuration ? rec.totalDuration + "m" : "";
+            return '<div class="list-row menu-recipe-row" data-menu-idx="' + idx + '">' +
+              '<span class="checkbox-circle' + (mr.checked ? " checked" : "") + '" data-check-idx="' + idx + '">' + (mr.checked ? "✓" : "") + "</span>" +
+              '<span class="row-title' + (mr.checked ? " strikethrough" : "") + '">' + escapeHtml(mr.name) + "</span>" +
+              '<span><span class="method-icons">' + (time ? time + " " : "") + icons.map((i) => i.emoji).join(" ") + "</span>" +
+              (icons.some((i) => i.text) ? '<span class="method-time">' + icons.filter((i) => i.text).map((i) => i.text).join(" · ") + "</span>" : "") +
+              "</span>" +
+              '<span class="info-btn" data-info-idx="' + idx + '">ⓘ</span>' +
+              "</div>";
+          }).join("") +
+          "</div>" +
+          '<div class="add-row" id="add-menu-recipe-row">+ ' + (isRo ? "Adaugă rețetă" : "Add recipe") + "</div>" +
+          '<div class="menu-footer">' +
+          '<button id="menu-shopping-btn">🛒 ' + (isRo ? "Listă cumpărături" : "Shopping List") + "</button>" +
+          '<span>' + (isRo ? "Total: " : "Total: ") + remainingTime + "m</span>" +
+          '<button id="menu-cooking-btn">👩‍🍳</button>' +
+          "</div>";
+
+        attachAutoCapitalize(content.querySelector("#menu-name-input"), (val) => { menu.name = val; });
+        content.querySelector("#menu-name-input").addEventListener("change", async (e) => {
+          menu.name = e.target.value.trim() || menu.name;
+          menu.updatedAt = nowISO();
+          await DB.put("menus", menu);
+        });
+        content.querySelector("#menu-date-input").addEventListener("change", async (e) => {
+          menu.date = e.target.value;
+          menu.updatedAt = nowISO();
+          await DB.put("menus", menu);
+        });
+
+        content.querySelectorAll("[data-check-idx]").forEach((el) => {
+          el.addEventListener("click", async () => {
+            const idx = parseInt(el.dataset.checkIdx, 10);
+            menu.recipes[idx].checked = !menu.recipes[idx].checked;
+            menu.updatedAt = nowISO();
+            await DB.put("menus", menu);
+            refresh();
+          });
+        });
+        content.querySelectorAll("[data-info-idx]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const idx = parseInt(el.dataset.infoIdx, 10);
+            openRecipeEditor(menu.recipes[idx].recipeId, refresh);
+          });
+        });
+        content.querySelectorAll("[data-menu-idx]").forEach((row) => {
+          makeSwipeable(row, async () => {
+            const idx = parseInt(row.dataset.menuIdx, 10);
+            menu.recipes.splice(idx, 1);
+            menu.updatedAt = nowISO();
+            await DB.put("menus", menu);
+            refresh();
+          });
+        });
+
+        content.querySelector("#add-menu-recipe-row").addEventListener("click", () => {
+          openRecipePickerForMenu(menu, refresh);
+        });
+        content.querySelector("#menu-shopping-btn").addEventListener("click", () => {
+          openMenuShoppingList(menu);
+        });
+        content.querySelector("#menu-cooking-btn").addEventListener("click", () => {
+          openCookingMode(menu, refresh);
+        });
+      }
+    });
+  }
+  window.openMenuDetail = openMenuDetail;
+
+  async function renderMenusScreen() {
+    const listEl = document.getElementById("menus-list");
+    const searchInput = document.getElementById("menus-search");
+    if (!listEl) return;
+
+    async function draw() {
+      const filter = (searchInput.value || "").toLowerCase();
+      const menus = await DB.getAll("menus");
+      const filtered = menus.filter((m) => m.name.toLowerCase().includes(filter));
+      filtered.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+      const card = document.createElement("div");
+      card.className = "list-card";
+      filtered.forEach((menu) => {
+        const row = document.createElement("div");
+        row.className = "list-row tappable";
+        row.innerHTML = '<span class="row-title">' + escapeHtml(menu.name) + '</span><span class="rating-badge">' + formatMenuDate(menu.date) + "</span>";
+        row.addEventListener("click", () => openMenuDetail(menu.id, draw));
+        card.appendChild(row);
+        makeSwipeable(row, async () => {
+          await DB.delete("menus", menu.id);
+          draw();
+        });
+      });
+      listEl.innerHTML = "";
+      listEl.appendChild(card);
+    }
+
+    searchInput.oninput = draw;
+    await draw();
+  }
+  window.renderMenusScreen = renderMenusScreen;
+
+  window.onMenusTabActivated = function (rightBtn) {
+    rightBtn.style.display = "inline-flex";
+    rightBtn.textContent = "+";
+    rightBtn.onclick = () => createAndOpenMenu(renderMenusScreen);
+    renderMenusScreen();
+  };
+
+})();
+</script>
+</body>
+</html>
