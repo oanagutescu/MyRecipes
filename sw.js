@@ -1,12 +1,19 @@
 // MyRecipes Service Worker
 // Bump CACHE_NAME on every deploy to force clients to fetch fresh files.
-const CACHE_NAME = 'myrecipes-v11';
+const CACHE_NAME = 'myrecipes-v13';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './styles.css',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './js/app-core.js',
+  './js/ui-common.js',
+  './js/products-shopping.js',
+  './js/recipes.js',
+  './js/admin.js',
+  './js/menus.js'
 ];
 
 self.addEventListener('install', (event) => {

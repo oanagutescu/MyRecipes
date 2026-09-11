@@ -1,0 +1,689 @@
+﻿  :root {
+    --accent: #007aff;
+    --accent-contrast: #ffffff;
+    --bg: #f2f2f7;
+    --card-bg: #ffffff;
+    --separator: #d1d1d6;
+    --text: #000000;
+    --text-secondary: #8e8e93;
+    --danger: #ff3b30;
+    --nav-height: 44px;
+    --tab-height: 49px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Navigation bar (per-screen header) */
+  .nav-bar {
+    flex: 0 0 auto;
+    padding-top: var(--safe-top);
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+  .nav-bar-inner {
+    height: var(--nav-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 12px;
+  }
+  .nav-title {
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .nav-btn {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--accent-contrast);
+    font-size: 17px;
+    padding: 0 8px;
+    cursor: pointer;
+  }
+  .nav-btn.left { left: 4px; }
+  .nav-btn.right { right: 4px; }
+
+  /* Screens */
+  .screens {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: none;
+  }
+  .screen.active { display: block; }
+
+  .placeholder {
+    padding: 24px 16px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  /* Grouped list style (iOS Settings-like) */
+  .group-header {
+    padding: 20px 16px 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .list-card {
+    background: var(--card-bg);
+    margin: 0 0 8px;
+  }
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--separator);
+    background: var(--card-bg);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row .row-title { flex: 1; font-size: 17px; }
+
+  /* Bottom Tab Bar */
+  .tab-bar {
+    flex: 0 0 auto;
+    display: flex;
+    background: rgba(249, 249, 249, 0.94);
+    border-top: 1px solid var(--separator);
+    padding-bottom: var(--safe-bottom);
+    backdrop-filter: blur(10px);
+  }
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: var(--tab-height);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .tab-btn .tab-icon { font-size: 22px; line-height: 1; }
+  .tab-btn.active { color: var(--accent); }
+
+  button, input, select, textarea {
+    font-family: inherit;
+  }
+
+  /* Search bar */
+  .search-bar-wrap {
+    padding: 8px 10px;
+    background: var(--bg);
+  }
+  .search-input {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: #e3e3e8;
+    font-size: 16px;
+  }
+
+  /* Overlay screen stack (pushed detail/edit screens) */
+  .overlay-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .overlay-screen {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    transform: translateX(100%);
+    transition: transform 0.28s ease;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .overlay-screen.active { transform: translateX(0); }
+  .overlay-content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Forms */
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+  }
+  .form-row label {
+    width: 110px;
+    flex: 0 0 auto;
+    color: var(--text-secondary);
+    font-size: 15px;
+  }
+  .form-row input[type="text"],
+  .form-row input[type="number"],
+  .form-row input[type="url"],
+  .form-row select,
+  .form-row textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 17px;
+    color: var(--text);
+    min-width: 0;
+  }
+  .form-row textarea { min-height: 90px; resize: vertical; padding-top: 8px; }
+  .form-row.tappable { cursor: pointer; }
+  .form-row .chevron { color: var(--separator); }
+  .danger-row {
+    text-align: center;
+    color: var(--danger);
+    font-size: 17px;
+    padding: 14px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+    cursor: pointer;
+  }
+  .add-row {
+    text-align: center;
+    color: var(--accent);
+    font-size: 17px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--separator);
+    cursor: pointer;
+  }
+
+  /* Chip grid (toggles / emoji picker) */
+  .chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--card-bg);
+  }
+  .chip {
+    padding: 8px 12px;
+    border-radius: 16px;
+    background: #e5e5ea;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .chip.active { background: var(--accent); color: #fff; }
+  .chip.emoji-chip { font-size: 22px; padding: 4px 8px; border-radius: 10px; }
+  .chip.emoji-chip.active { background: var(--accent); }
+  .extra-field-row { background: #f7f7fa; }
+
+    /* Swipe to delete */
+    .swipe-container {
+        position: relative;
+        overflow: hidden;
+        background: var(--card-bg); /* covers any 1px anti-aliasing seam
+                                     at the row's edge with the card
+                                     color instead of the red button */
+    }
+
+    .swipe-content {
+        position: relative;
+        z-index: 2; /* row paints ABOVE the delete button */
+        background: var(--card-bg);
+        touch-action: pan-y;
+    }
+
+    .swipe-delete-btn {
+        position: absolute;
+        z-index: 1; /* stays BEHIND the row until swiped */
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 80px;
+        background: var(--danger);
+        color: #fff;
+        border: none;
+        font-size: 14px;
+    }
+
+    /* Star rating */
+    .star-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--separator);
+    }
+
+            .star-row .member-name {
+                flex: 1;
+                font-size: 17px;
+            }
+
+        .stars {
+            display: flex;
+            gap: 2px;
+        }
+
+        .star {
+            font-size: 22px;
+            color: var(--separator);
+            cursor: pointer;
+        }
+
+            .star.filled {
+                color: #ff9500;
+            }
+
+        .rating-badge {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 4px 8px;
+        }
+        /* Photo preview */
+        .photo-preview {
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            display: block;
+            background: #e5e5ea;
+        }
+        /* Menu recipe rows + footer */
+        .menu-recipe-row .method-icons {
+            font-size: 14px;
+            text-align: right;
+        }
+
+        .menu-recipe-row .method-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: block;
+            text-align: right;
+        }
+
+        .menu-recipe-row .info-btn {
+            color: var(--accent);
+            font-size: 18px;
+            padding: 0 4px;
+            cursor: pointer;
+        }
+
+        .checkbox-circle {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--separator);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #fff;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+        /* Cooking Mode */
+        .cooking-recipe-card {
+            background: var(--card-bg);
+            margin: 0 0 12px;
+            padding: 14px 16px;
+        }
+
+            .cooking-recipe-card.done {
+                opacity: 0.55;
+            }
+
+        .cooking-recipe-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+            .cooking-recipe-header .cr-name {
+                font-size: 17px;
+                font-weight: 600;
+                flex: 1;
+            }
+
+            .cooking-recipe-header .cr-done-btn {
+                border: none;
+                background: var(--accent);
+                color: #fff;
+                border-radius: 8px;
+                padding: 6px 10px;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+            .cooking-recipe-header .cr-start-btn {
+                border: none;
+                background: var(--secondary-bg, #888);
+                color: #fff;
+                border-radius: 8px;
+                padding: 6px 10px;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+                .cooking-recipe-header .cr-start-btn:disabled {
+                    opacity: 0.6;
+                    cursor: default;
+                }
+
+        .cooking-elapsed-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+            .cooking-elapsed-row .ce-elapsed {
+                font-variant-numeric: tabular-nums;
+                font-weight: 600;
+                color: var(--text-primary, inherit);
+            }
+
+            .cooking-elapsed-row .ce-total {
+                font-variant-numeric: tabular-nums;
+                font-weight: 600;
+                color: var(--text-primary, inherit);
+            }
+
+        .cooking-toggle-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .cooking-toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+            .cooking-toggle-item .ct-check {
+                width: 20px;
+                height: 20px;
+                border-radius: 5px;
+                border: 2px solid var(--separator);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                color: #fff;
+                flex: 0 0 auto;
+            }
+
+            .cooking-toggle-item.checked .ct-check {
+                background: var(--accent);
+                border-color: var(--accent);
+            }
+
+            .cooking-toggle-item.checked .ct-label {
+                text-decoration: line-through;
+                color: var(--text-secondary);
+            }
+
+        .cooking-timer-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 0;
+            border-top: 1px solid var(--separator);
+        }
+
+            .cooking-timer-row .ct-timer-label {
+                font-size: 15px;
+            }
+
+        .cooking-timer-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cooking-timer-display {
+            font-size: 20px;
+            font-variant-numeric: tabular-nums;
+            min-width: 60px;
+            text-align: right;
+        }
+
+            .cooking-timer-display.ringing {
+                color: var(--danger);
+                animation: cookingBlink 1s step-start infinite;
+            }
+
+        @keyframes cookingBlink {
+            50% {
+                opacity: 0.2;
+            }
+        }
+
+        .cooking-timer-btn {
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+            .cooking-timer-btn.secondary {
+                background: var(--separator);
+                color: var(--text);
+            }
+
+        .cooking-link-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--accent);
+        }
+
+            .cooking-link-row span {
+                cursor: pointer;
+            }
+
+        .cooking-info-photo {
+            width: 100%;
+            max-height: 260px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            cursor: zoom-in;
+            display: block;
+        }
+
+        .cooking-info-link {
+            display: inline-block;
+            margin-bottom: 12px;
+            color: var(--accent);
+            font-size: 15px;
+            word-break: break-all;
+        }
+        /* Full-screen zoomable image lightbox */
+        .lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            touch-action: pinch-zoom;
+        }
+
+            .lightbox-overlay img {
+                max-width: 100%;
+                max-height: 100%;
+                touch-action: pinch-zoom;
+                cursor: zoom-out;
+            }
+
+        .strikethrough {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+        /* Admin screen */
+        .color-swatch-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--separator);
+        }
+
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
+            .color-swatch.selected {
+                border-color: var(--text);
+            }
+
+            .category-manage-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 16px;
+                border-bottom: 1px solid var(--separator);
+                background: var(--card-bg);
+            }
+
+                .category-manage-row .cat-icon {
+                    font-size: 20px;
+                }
+
+                .category-manage-row input[type="text"] {
+                    flex: 1;
+                    border: none;
+                    background: transparent;
+                    font-size: 17px;
+                    color: var(--text);
+                    min-width: 0;
+                }
+
+                .category-manage-row .cat-drag-handle {
+                    color: var(--text-secondary);
+                    font-size: 20px;
+                    padding: 4px 8px;
+                    cursor: grab;
+                    touch-action: none;
+                }
+
+                .category-manage-row.dragging {
+                    position: relative;
+                    z-index: 10;
+                    background: var(--card-bg);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                    opacity: 0.96;
+                }
+
+                .category-manage-row .cat-delete-btn {
+                    background: none;
+                    border: none;
+                    color: var(--danger);
+                    font-size: 18px;
+                    padding: 4px 8px;
+                    cursor: pointer;
+                }
+
+        .lang-switch-row {
+            display: flex;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--separator);
+        }
+
+        .lang-switch-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--separator);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+            .lang-switch-btn.active {
+                background: var(--accent);
+                color: var(--accent-contrast);
+                border-color: var(--accent);
+            }
+
+        .menu-footer {
+            position: sticky;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: rgba(249, 249, 249, 0.96);
+            border-top: 1px solid var(--separator);
+            backdrop-filter: blur(10px);
+        }
+
+            .menu-footer button {
+                background: none;
+                border: none;
+                color: var(--accent);
+                font-size: 15px;
+                cursor: pointer;
+            }
