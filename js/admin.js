@@ -105,7 +105,6 @@ async function renderAdminScreen() {
       if (file) importAllData(file);
       importInput.value = "";
     });
-    dataCard.appendChild(importRow);
 
     // Import products from multiline text (categories + bullet items)
     const importTextRow = document.createElement("div");
@@ -117,6 +116,7 @@ async function renderAdminScreen() {
     // Append import products above export data
     dataCard.appendChild(importTextRow);
     dataCard.appendChild(exportRow);
+    dataCard.appendChild(importRow);
 
     container.appendChild(dataCard);
   }
