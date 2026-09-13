@@ -90,7 +90,6 @@ async function renderAdminScreen() {
     exportRow.className = "add-row";
     exportRow.textContent = "\u2B06\uFE0F " + I18N.t("admin.exportData");
     exportRow.addEventListener("click", exportAllData);
-    dataCard.appendChild(exportRow);
 
     const importRow = document.createElement("div");
     importRow.className = "add-row";
@@ -107,6 +106,17 @@ async function renderAdminScreen() {
       importInput.value = "";
     });
     dataCard.appendChild(importRow);
+
+    // Import products from multiline text (categories + bullet items)
+    const importTextRow = document.createElement("div");
+    importTextRow.className = "add-row";
+    importTextRow.textContent = "📋 " + (isRo ? "Importă produse (text)" : "Import products (text)");
+    importTextRow.addEventListener("click", () => {
+      openImportProductsTextScreen();
+    });
+    // Append import products above export data
+    dataCard.appendChild(importTextRow);
+    dataCard.appendChild(exportRow);
 
     container.appendChild(dataCard);
   }
@@ -299,6 +309,136 @@ async function importAllData(file) {
   }
 }
 window.importAllData = importAllData;
+
+// =========================================================
+// Import ingredients from pasted multiline text
+// Expected format:
+// CategoryName
+// • item
+// • item
+// NextCategory
+// • item
+// =========================================================
+function openImportProductsTextScreen() {
+  const isRo = I18N.lang === "ro";
+  const screen = pushScreen({
+    title: isRo ? "Importă produse" : "Import products",
+    left: { label: isRo ? "Anulează" : "Cancel" },
+    right: {
+      label: isRo ? "Importă" : "Import",
+      action: async (close, refresh) => {
+        const ta = screen.element.querySelector("#import-ingredients-text");
+        const text = (ta && ta.value) ? ta.value : "";
+        if (!text.trim()) { alert(isRo ? "Introduceți text pentru import." : "Please paste text to import."); return; }
+
+        // Prepare existing maps
+        const existingCats = await getCategoriesSorted("ingredient");
+        const catMap = Object.fromEntries(existingCats.map(c => [c.name.trim().toLowerCase(), c]));
+        const existingIngs = await DB.getAll("ingredients");
+        const ingMap = {};
+        existingIngs.forEach(i => { ingMap[((i.name||"").trim().toLowerCase() + "|" + (i.categoryId||""))] = i; });
+
+        const lines = text.split(/\r?\n/);
+        let currentCatName = null;
+        const createdCats = [];
+        let createdIngsCount = 0;
+        for (let rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) continue;
+          // bullet/inline item detection (•, -, *, etc.)
+          const isItem = /^([\u2022\u2023\u25E6\u2024\u2025\-\*\u2022\u2022]|\s*•|\s*-)\s*/.test(line) || /^\u2022|^\u2023|^\u25E6/.test(line);
+          if (isItem) {
+            // remove common bullet characters
+            let rawName = line.replace(/^[\s\u2022\u2023\u25E6\u2024\u2025\-\*\u2022\u2022]+/, "").trim();
+            if (!rawName) continue;
+            // Extract any parenthesized text ( (...) ) and move it to notes.
+            const extractedNotes = [];
+            const parenRegex = /\(([^)]+)\)/g;
+            let m;
+            while ((m = parenRegex.exec(rawName)) !== null) {
+              if (m[1]) extractedNotes.push(m[1].trim());
+            }
+            rawName = rawName.replace(parenRegex, "").trim();
+            if (!rawName) continue;
+            let cat = null;
+            if (currentCatName) {
+              cat = catMap[currentCatName.trim().toLowerCase()];
+            }
+            if (!cat) {
+              // create or reuse a default Imported category
+              const defaultName = isRo ? "Importate" : "Imported";
+              currentCatName = currentCatName || defaultName;
+              // normalize and capitalize category display name
+              const rawCat = (currentCatName || defaultName).trim();
+              const displayCatName = rawCat.charAt(0).toUpperCase() + rawCat.slice(1);
+              const catKey = displayCatName.trim().toLowerCase();
+              cat = catMap[catKey];
+              if (!cat) {
+                // create category
+                try {
+                  cat = await createCategory("ingredient", displayCatName, "");
+                } catch (err) {
+                  console.warn("Failed to create category", displayCatName, err);
+                  continue;
+                }
+                catMap[catKey] = cat;
+                createdCats.push(cat);
+              }
+              // ensure currentCatName holds the display form
+              currentCatName = displayCatName;
+            }
+            const normalizedName = rawName.trim().toLowerCase();
+            const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+            const key = normalizedName + "|" + (cat.id || "");
+            if (ingMap[key]) continue; // skip existing (comparison is case-insensitive)
+            const ing = {
+              id: uuid(),
+              categoryId: cat.id,
+              name: displayName,
+              note: extractedNotes.length ? extractedNotes.join('; ') : "",
+              units: [{ unit: "buc", defaultQty: 1 }],
+              excludeFromShoppingList: false,
+              usageCount: 0,
+              updatedAt: nowISO()
+            };
+            try {
+              await DB.put("ingredients", ing);
+              ingMap[key] = ing;
+              createdIngsCount++;
+            } catch (err) {
+              console.warn("Failed to create ingredient", name, err);
+            }
+          } else {
+            // treat as category: normalize and capitalize
+            const rawCatLine = line.trim();
+            const displayCat = rawCatLine.charAt(0).toUpperCase() + rawCatLine.slice(1);
+            currentCatName = displayCat;
+            // ensure category exists or create it
+            const key = displayCat.trim().toLowerCase();
+            if (!catMap[key]) {
+              try {
+                const cat = await createCategory("ingredient", displayCat, "");
+                catMap[key] = cat;
+                createdCats.push(cat);
+              } catch (err) {
+                console.warn("Failed to create category", displayCat, err);
+              }
+            }
+          }
+        }
+
+        alert((isRo ? "Import finalizat: " : "Import complete: ") + createdIngsCount + (isRo ? " produse, " : " products, ") + createdCats.length + (isRo ? " categorii create." : " categories created."));
+        close();
+      }
+    },
+    render(content) {
+      content.innerHTML = '<div style="padding:12px"><label>' + (isRo ? 'Lipiți textul (categorie + elemente marcate cu •):' : 'Paste text (category lines + bullet items):') + '</label>' +
+        '<textarea id="import-ingredients-text" style="width:100%;height:260px;margin-top:8px;padding:8px" placeholder="Fructe\n• afine\n• avocado\nPește\n• ton conservat"></textarea></div>';
+    }
+  });
+  return screen;
+}
+window.openImportProductsTextScreen = openImportProductsTextScreen;
 
 /* =========================================================
    Tab activation hook: render lists + manage nav "+" button
