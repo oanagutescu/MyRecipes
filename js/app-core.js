@@ -368,10 +368,21 @@
      Service worker registration
      ========================================================= */
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch((err) => {
-        console.warn("Service worker registration failed:", err);
-      });
+    // Disable the service worker to avoid offline/cached responses
+    // when a new version is deployed. On load, unregister any existing
+    // service workers and clear the caches used by the app.
+    window.addEventListener("load", async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+        if (window.caches && caches.keys) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        console.info("Service workers unregistered and caches cleared.");
+      } catch (err) {
+        console.warn("Failed to unregister service workers:", err);
+      }
     });
   }
 
