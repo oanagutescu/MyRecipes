@@ -223,16 +223,7 @@ function openCategoryManageScreen(kind) {
       });
       content.appendChild(card);
 
-      // Also keep an in-content add-row for discoverability and backward
-      // compatibility: clicking it will open the New Category screen and
-      // refresh the list when a category is created.
-      const addRow = document.createElement("div");
-      addRow.className = "add-row";
-      addRow.textContent = "+ " + I18N.t("admin.addCategory");
-      addRow.addEventListener("click", () => {
-        openNewCategoryScreen(kind, () => refresh());
-      });
-      content.appendChild(addRow);
+      // Add action is provided via the overlay nav right button (top-right)
     }
   });
   return screen;
