@@ -265,11 +265,29 @@ async function importAllData(file) {
     const data = parsed && parsed.data ? parsed.data : parsed;
     if (!data || typeof data !== "object") throw new Error("Invalid backup file");
 
+    // Merge-only import: add records that don't already exist on this device.
+    // Do NOT clear or delete any existing data. For each record in the
+    // backup, if a record with the same id is not present in the local
+    // store, insert it. If the record lacks an id, generate one and insert.
     for (const storeName of ADMIN_DATA_STORES) {
-      await DB.clear(storeName);
       const records = Array.isArray(data[storeName]) ? data[storeName] : [];
       for (const record of records) {
-        await DB.put(storeName, record);
+        try {
+          if (!record || typeof record !== 'object') continue;
+          if (record.id) {
+            const existing = await DB.get(storeName, record.id);
+            if (!existing) {
+              await DB.put(storeName, record);
+            }
+          } else {
+            // No id in backup record: generate a new id to avoid collisions
+            const rec = Object.assign({}, record, { id: uuid() });
+            await DB.put(storeName, rec);
+          }
+        } catch (err) {
+          // Log and continue with other records
+          console.warn('Failed to import record into', storeName, err);
+        }
       }
     }
 
