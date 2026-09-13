@@ -276,27 +276,61 @@ async function importAllData(file) {
     if (!data || typeof data !== "object") throw new Error("Invalid backup file");
 
     // Merge-only import: add records that don't already exist on this device.
-    // Do NOT clear or delete any existing data. For each record in the
-    // backup, if a record with the same id is not present in the local
-    // store, insert it. If the record lacks an id, generate one and insert.
+    // Do NOT clear or delete any existing data. For each store we try to
+    // detect duplicates by name (case-insensitive) when possible to avoid
+    // creating duplicates across devices where IDs differ.
     for (const storeName of ADMIN_DATA_STORES) {
       const records = Array.isArray(data[storeName]) ? data[storeName] : [];
-      for (const record of records) {
-        try {
-          if (!record || typeof record !== 'object') continue;
-          if (record.id) {
-            const existing = await DB.get(storeName, record.id);
-            if (!existing) {
-              await DB.put(storeName, record);
+      try {
+        const existing = await DB.getAll(storeName);
+        // build a set of normalized names for quick lookup (if records have names)
+        const nameSet = new Set();
+        existing.forEach((e) => {
+          const n = (e && (e.name || e.title) || "").trim().toLowerCase();
+          if (n) nameSet.add(n);
+        });
+
+        for (const record of records) {
+          try {
+            if (!record || typeof record !== 'object') continue;
+
+            const recName = (record.name || record.title || "").trim();
+            if (recName) {
+              const key = recName.toLowerCase();
+              if (nameSet.has(key)) {
+                // existing item with same name - skip to avoid duplicate
+                continue;
+              }
+              // insert record (preserve id if present, otherwise ensure one exists)
+              const toInsert = Object.assign({}, record);
+              if (!toInsert.id) toInsert.id = uuid();
+              await DB.put(storeName, toInsert);
+              nameSet.add(key);
+            } else {
+              // no name to compare by: fallback to id-based insert if id not present locally
+              if (record.id) {
+                const existsById = await DB.get(storeName, record.id);
+                if (!existsById) await DB.put(storeName, record);
+              } else {
+                const rec = Object.assign({}, record, { id: uuid() });
+                await DB.put(storeName, rec);
+              }
             }
-          } else {
-            // No id in backup record: generate a new id to avoid collisions
-            const rec = Object.assign({}, record, { id: uuid() });
-            await DB.put(storeName, rec);
+          } catch (err) {
+            console.warn('Failed to import record into', storeName, err);
           }
-        } catch (err) {
-          // Log and continue with other records
-          console.warn('Failed to import record into', storeName, err);
+        }
+      } catch (err) {
+        console.warn('Failed to read existing records for', storeName, err);
+        // fallback: try to insert all records with generated ids
+        for (const record of records) {
+          try {
+            if (!record || typeof record !== 'object') continue;
+            const rec = Object.assign({}, record, { id: record.id || uuid() });
+            await DB.put(storeName, rec);
+          } catch (e) {
+            console.warn('Fallback insert failed for', storeName, e);
+          }
         }
       }
     }
