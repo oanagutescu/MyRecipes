@@ -73,6 +73,7 @@
     });
     return screen;
   }
+  window.openNewCategoryScreen = openNewCategoryScreen;
 
   function openCategoryPicker(kind, currentId, onSelect) {
     const isRo = I18N.lang === "ro";

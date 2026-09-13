@@ -124,6 +124,13 @@ function openCategoryManageScreen(kind) {
   const screen = pushScreen({
     title,
     left: { label: isRo ? "Închide" : "Close" },
+    // Add a right/nav button so the "+" appears in the upper-right like other screens
+    right: {
+      label: "+",
+      action: (close, refresh) => {
+        openNewCategoryScreen(kind, () => refresh());
+      }
+    },
     async render(content, refresh) {
       const cats = await getCategoriesSorted(kind);
       content.innerHTML = "";
@@ -216,6 +223,9 @@ function openCategoryManageScreen(kind) {
       });
       content.appendChild(card);
 
+      // Also keep an in-content add-row for discoverability and backward
+      // compatibility: clicking it will open the New Category screen and
+      // refresh the list when a category is created.
       const addRow = document.createElement("div");
       addRow.className = "add-row";
       addRow.textContent = "+ " + I18N.t("admin.addCategory");
