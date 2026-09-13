@@ -119,6 +119,12 @@ async function renderAdminScreen() {
     dataCard.appendChild(importRow);
 
     container.appendChild(dataCard);
+
+    // App version display (update APP_VERSION in app-core.js on each deployment)
+    const versionRow = document.createElement("div");
+    versionRow.className = "form-row";
+    versionRow.innerHTML = '<label>' + I18N.t("admin.appVersion") + '</label><div style="flex:1;text-align:right">' + (window.APP_VERSION || 'dev') + '</div>';
+    container.appendChild(versionRow);
   }
 
   await draw();
