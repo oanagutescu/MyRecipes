@@ -279,35 +279,40 @@ async function importAllData(file) {
     // Do NOT clear or delete any existing data. For each store we try to
     // detect duplicates by name (case-insensitive) when possible to avoid
     // creating duplicates across devices where IDs differ.
+    // helper: normalize names (trim, collapse spaces, remove diacritics, lower-case)
+    function normalizeName(s) {
+      if (!s) return "";
+      try {
+        return s.toString().trim().replace(/\s+/g, " ").normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+      } catch (e) {
+        return s.toString().trim().replace(/\s+/g, " ").toLowerCase();
+      }
+    }
+
     for (const storeName of ADMIN_DATA_STORES) {
       const records = Array.isArray(data[storeName]) ? data[storeName] : [];
       try {
         const existing = await DB.getAll(storeName);
-        // build a set of normalized names for quick lookup (if records have names)
         const nameSet = new Set();
         existing.forEach((e) => {
-          const n = (e && (e.name || e.title) || "").trim().toLowerCase();
+          const n = normalizeName(e && (e.name || e.title));
           if (n) nameSet.add(n);
         });
 
         for (const record of records) {
           try {
             if (!record || typeof record !== 'object') continue;
-
-            const recName = (record.name || record.title || "").trim();
+            const recNameRaw = (record.name || record.title || "");
+            const recName = normalizeName(recNameRaw);
             if (recName) {
-              const key = recName.toLowerCase();
-              if (nameSet.has(key)) {
-                // existing item with same name - skip to avoid duplicate
-                continue;
+              if (nameSet.has(recName)) {
+                continue; // duplicate by name
               }
-              // insert record (preserve id if present, otherwise ensure one exists)
               const toInsert = Object.assign({}, record);
               if (!toInsert.id) toInsert.id = uuid();
               await DB.put(storeName, toInsert);
-              nameSet.add(key);
+              nameSet.add(recName);
             } else {
-              // no name to compare by: fallback to id-based insert if id not present locally
               if (record.id) {
                 const existsById = await DB.get(storeName, record.id);
                 if (!existsById) await DB.put(storeName, record);
@@ -322,7 +327,6 @@ async function importAllData(file) {
         }
       } catch (err) {
         console.warn('Failed to read existing records for', storeName, err);
-        // fallback: try to insert all records with generated ids
         for (const record of records) {
           try {
             if (!record || typeof record !== 'object') continue;
