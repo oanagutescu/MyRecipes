@@ -26,6 +26,7 @@
       "admin.exportData": "Export Data (Backup)",
       "admin.importData": "Import Data (Restore)",
       "admin.importConfirm": "This will merge data from the selected backup into your current data: records that do not already exist will be added. No deletions or replacements will be performed. Continue?",
+      "admin.appVersion": "App Version",
       "admin.importSuccess": "Data imported successfully. Reloading app...",
       "admin.importError": "Failed to import data. Please make sure the file is a valid MyRecipes backup.",
       "admin.exportSuccess": "Backup file downloaded.",
@@ -59,6 +60,7 @@
       "admin.exportData": "Exportă datele (Backup)",
       "admin.importData": "Importă date (Restaurare)",
       "admin.importConfirm": "Aceasta va îmbina datele din fișierul de backup selectat cu datele curente: înregistrările care nu există deja vor fi adăugate. Nu se vor efectua ștergeri sau înlocuiri. Continuați?",
+      "admin.appVersion": "Versiune aplicație",
       "admin.importSuccess": "Datele au fost importate cu succes. Se reîncarcă aplicația...",
       "admin.importError": "Importul datelor a eșuat. Asigurați-vă că fișierul este un backup valid MyRecipes.",
       "admin.exportSuccess": "Fișierul de backup a fost descărcat.",
@@ -98,6 +100,10 @@
     }
   };
   window.I18N = I18N;
+
+  // Application version. Update this value on each deployment/release.
+  const APP_VERSION = "1.0.0";
+  window.APP_VERSION = APP_VERSION;
 
   /* =========================================================
      Accent color (applied instantly from localStorage,

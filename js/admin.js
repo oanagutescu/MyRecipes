@@ -119,6 +119,12 @@ async function renderAdminScreen() {
     dataCard.appendChild(importRow);
 
     container.appendChild(dataCard);
+
+    // App version display (update APP_VERSION in app-core.js on each deployment)
+    const versionRow = document.createElement("div");
+    versionRow.className = "form-row";
+    versionRow.innerHTML = '<label>' + I18N.t("admin.appVersion") + '</label><div style="flex:1;text-align:right">' + (window.APP_VERSION || 'dev') + '</div>';
+    container.appendChild(versionRow);
   }
 
   await draw();
@@ -289,6 +295,35 @@ async function importAllData(file) {
       }
     }
 
+    // Build a remap of category IDs from the backup to local category IDs.
+    // Categories are deduped by (normalized) name, so when a category with the
+    // same name already exists locally under a different ID, records referencing
+    // the source categoryId must be pointed at the local category. Categories
+    // that will be newly created keep their source ID (they map to themselves).
+    const categoryIdRemap = {};
+    for (const catStore of ["recipeCategories", "ingredientCategories"]) {
+      try {
+        const existingCats = await DB.getAll(catStore);
+        const localByName = {};
+        existingCats.forEach((c) => {
+          const n = normalizeName(c && c.name);
+          if (n && !(n in localByName)) localByName[n] = c.id;
+        });
+        const records = Array.isArray(data[catStore]) ? data[catStore] : [];
+        for (const record of records) {
+          if (!record || typeof record !== 'object' || !record.id) continue;
+          const n = normalizeName(record.name || record.title || "");
+          if (n && n in localByName) {
+            categoryIdRemap[record.id] = localByName[n];
+          } else {
+            categoryIdRemap[record.id] = record.id;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to build category remap for', catStore, err);
+      }
+    }
+
     for (const storeName of ADMIN_DATA_STORES) {
       const records = Array.isArray(data[storeName]) ? data[storeName] : [];
       try {
@@ -310,14 +345,26 @@ async function importAllData(file) {
               }
               const toInsert = Object.assign({}, record);
               if (!toInsert.id) toInsert.id = uuid();
+              if (toInsert.categoryId && categoryIdRemap[toInsert.categoryId]) {
+                toInsert.categoryId = categoryIdRemap[toInsert.categoryId];
+              }
               await DB.put(storeName, toInsert);
               nameSet.add(recName);
             } else {
               if (record.id) {
                 const existsById = await DB.get(storeName, record.id);
-                if (!existsById) await DB.put(storeName, record);
+                if (!existsById) {
+                  const toInsert = Object.assign({}, record);
+                  if (toInsert.categoryId && categoryIdRemap[toInsert.categoryId]) {
+                    toInsert.categoryId = categoryIdRemap[toInsert.categoryId];
+                  }
+                  await DB.put(storeName, toInsert);
+                }
               } else {
                 const rec = Object.assign({}, record, { id: uuid() });
+                if (rec.categoryId && categoryIdRemap[rec.categoryId]) {
+                  rec.categoryId = categoryIdRemap[rec.categoryId];
+                }
                 await DB.put(storeName, rec);
               }
             }
@@ -331,6 +378,9 @@ async function importAllData(file) {
           try {
             if (!record || typeof record !== 'object') continue;
             const rec = Object.assign({}, record, { id: record.id || uuid() });
+            if (rec.categoryId && categoryIdRemap[rec.categoryId]) {
+              rec.categoryId = categoryIdRemap[rec.categoryId];
+            }
             await DB.put(storeName, rec);
           } catch (e) {
             console.warn('Fallback insert failed for', storeName, e);
