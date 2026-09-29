@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset="1" stop-color="#ff6b6b"/>
+    </linearGradient>
+    <clipPath id="round"><rect width="1024" height="1024" rx="225"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect width="1024" height="1024" rx="225" fill="url(#bg)"/>
+
+    <!-- playful confetti dots -->
+    <circle cx="180" cy="220" r="26" fill="#ffffff" opacity="0.35"/>
+    <circle cx="850" cy="180" r="18" fill="#ffffff" opacity="0.3"/>
+    <circle cx="880" cy="700" r="30" fill="#ffffff" opacity="0.3"/>
+    <circle cx="140" cy="650" r="16" fill="#ffffff" opacity="0.35"/>
+    <circle cx="770" cy="870" r="20" fill="#ffffff" opacity="0.25"/>
+
+    <!-- steam with a heart -->
+    <path d="M330 320 C310 292 348 268 330 240 C312 212 350 188 330 160" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" opacity="0.55"/>
+    <path d="M694 320 C674 292 712 268 694 240 C676 212 714 188 694 160" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" opacity="0.55"/>
+    <path d="M512 340 C470 310 420 268 420 218 C420 172 454 146 494 146 C510 146 524 152 532 164 C540 152 554 146 570 146 C610 146 644 172 644 218 C644 268 554 310 512 340 Z" fill="#ff5d73"/>
+
+    <!-- casserole dish -->
+    <rect x="140" y="560" width="104" height="54" rx="27" fill="#ffe3ee"/>
+    <rect x="780" y="560" width="104" height="54" rx="27" fill="#ffe3ee"/>
+    <path d="M212 560 H812 C812 730 680 856 512 856 C344 856 212 730 212 560 Z" fill="#ffffff"/>
+
+    <!-- happy face -->
+    <path d="M372 660 Q396 636 420 660" fill="none" stroke="#2d3436" stroke-width="26" stroke-linecap="round"/>
+    <path d="M604 660 Q628 636 652 660" fill="none" stroke="#2d3436" stroke-width="26" stroke-linecap="round"/>
+    <path d="M452 712 Q512 766 572 712" fill="none" stroke="#2d3436" stroke-width="28" stroke-linecap="round"/>
+    <circle cx="362" cy="724" r="30" fill="#ffc8dd"/>
+    <circle cx="662" cy="724" r="30" fill="#ffc8dd"/>
+  </g>
+</svg>
